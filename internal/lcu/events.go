@@ -294,6 +294,9 @@ type queueInfo struct {
 	IsRanked            bool   `json:"isRanked"`
 	Description         string `json:"description"`
 	DetailedDescription string `json:"detailedDescription"`
+	MapID               int    `json:"mapId"`
+	GameMode            string `json:"gameMode"`
+	MaxPlayers          int    `json:"maximumParticipantListSize"`
 }
 
 // fetchQueueInfo looks up a queue's display name/description by ID.

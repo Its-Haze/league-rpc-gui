@@ -58,9 +58,14 @@ type fakeState struct {
 	statsCalls int
 	lastKills  int
 	lastLevel  int
+	lastGold   int
 
 	startCalls int
 	lastStart  int64
+
+	spectatedCalls int
+	lastRawMode    string
+	lastMapNumber  int
 }
 
 func (f *fakeState) UpdateChampion(championID, championName, skinName, chromaName string, skinID int) {
@@ -77,6 +82,7 @@ func (f *fakeState) UpdateInGameStats(kills, deaths, assists, cs, level, gold in
 	f.statsCalls++
 	f.lastKills = kills
 	f.lastLevel = level
+	f.lastGold = gold
 }
 
 func (f *fakeState) UpdateGameStart(start int64) {
@@ -86,13 +92,22 @@ func (f *fakeState) UpdateGameStart(start int64) {
 	f.lastStart = start
 }
 
+func (f *fakeState) UpdateSpectatedGame(rawGameMode string, mapNumber int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.spectatedCalls++
+	f.lastRawMode = rawGameMode
+	f.lastMapNumber = mapNumber
+}
+
 func (f *fakeState) snapshot() fakeState {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return fakeState{
 		championCalls: f.championCalls, lastChampID: f.lastChampID, lastSkinID: f.lastSkinID,
-		statsCalls: f.statsCalls, lastKills: f.lastKills, lastLevel: f.lastLevel,
+		statsCalls: f.statsCalls, lastKills: f.lastKills, lastLevel: f.lastLevel, lastGold: f.lastGold,
 		startCalls: f.startCalls, lastStart: f.lastStart,
+		spectatedCalls: f.spectatedCalls, lastRawMode: f.lastRawMode, lastMapNumber: f.lastMapNumber,
 	}
 }
 
@@ -146,6 +161,118 @@ func TestPoller_NormalGame_ResolvesChampionOnceAndPollsStatsEveryTick(t *testing
 	}
 	if snap.startCalls == 0 {
 		t.Error("expected UpdateGameStart to be called")
+	}
+}
+
+func TestPoller_ArenaGame_AlsoWritesLevelAndGold(t *testing.T) {
+	d := normalGameDoer()
+	d.responses[baseURL+"/liveclientdata/activeplayer"] = `{"riotId":"Foo#EUW","level":13,"currentGold":6400.5}`
+	resolver := &fakeResolver{result: championdata.Resolution{ID: "Chogath", Name: "Cho'Gath", BaseSkinID: 1}}
+	state := &fakeState{}
+	p := NewPoller(NewClient(d), resolver, state, storeWithInterval(testInterval), zerolog.Nop())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go p.Run(ctx, types.GameModeArena)
+
+	waitFor(t, testTimeout, func() bool { return state.snapshot().statsCalls >= 2 })
+
+	snap := state.snapshot()
+	if snap.lastLevel != 13 || snap.lastGold != 6400 {
+		t.Errorf("level/gold = %d/%d, want 13/6400", snap.lastLevel, snap.lastGold)
+	}
+	if snap.lastKills != 1 {
+		t.Errorf("lastKills = %d, want 1 (KDA still polled for Arena)", snap.lastKills)
+	}
+}
+
+func TestPoller_ArenaGame_ActivePlayerUnavailableWritesNoZeroedStats(t *testing.T) {
+	d := normalGameDoer()
+	delete(d.responses, baseURL+"/liveclientdata/activeplayer") // 404s now
+	resolver := &fakeResolver{result: championdata.Resolution{ID: "Chogath", Name: "Cho'Gath", BaseSkinID: 1}}
+	state := &fakeState{}
+	p := NewPoller(NewClient(d), resolver, state, storeWithInterval(testInterval), zerolog.Nop())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go p.Run(ctx, types.GameModeArena)
+
+	time.Sleep(20 * testInterval)
+
+	if got := state.snapshot().statsCalls; got != 0 {
+		t.Errorf("statsCalls = %d, want 0: with activeplayer down, Arena must not write zeroed level/gold", got)
+	}
+}
+
+func TestPoller_NormalGame_DoesNotReadLevelOrGold(t *testing.T) {
+	d := normalGameDoer()
+	d.responses[baseURL+"/liveclientdata/activeplayer"] = `{"riotId":"Foo#EUW","level":13,"currentGold":6400}`
+	resolver := &fakeResolver{result: championdata.Resolution{ID: "Chogath", Name: "Cho'Gath", BaseSkinID: 1}}
+	state := &fakeState{}
+	p := NewPoller(NewClient(d), resolver, state, storeWithInterval(testInterval), zerolog.Nop())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go p.Run(ctx, types.GameModeClassic)
+
+	waitFor(t, testTimeout, func() bool { return state.snapshot().statsCalls >= 2 })
+
+	if snap := state.snapshot(); snap.lastLevel != 0 || snap.lastGold != 0 {
+		t.Errorf("level/gold = %d/%d, want 0/0 for a normal (non Arena/Swarm) mode", snap.lastLevel, snap.lastGold)
+	}
+}
+
+func TestPoller_Spectating_WritesModeMapTimerAndLeadingChampion(t *testing.T) {
+	d := newFakeDoer()
+	d.responses[baseURL+"/liveclientdata/allgamedata"] = `{
+		"gameData":{"gameMode":"ARAM","gameTime":123,"mapNumber":12},
+		"allPlayers":[
+			{"riotId":"Someone#EUW","rawChampionName":"game_character_displayname_Chogath","rawSkinName":"game_character_skin_displayname_Chogath_1","skinID":1}
+		]
+	}`
+	resolver := &fakeResolver{result: championdata.Resolution{ID: "Chogath", Name: "Cho'Gath", BaseSkinID: 1}}
+	state := &fakeState{}
+	p := NewPoller(NewClient(d), resolver, state, storeWithInterval(testInterval), zerolog.Nop())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go p.RunSpectating(ctx)
+
+	waitFor(t, testTimeout, func() bool { return state.snapshot().spectatedCalls >= 2 })
+
+	snap := state.snapshot()
+	if snap.lastRawMode != "ARAM" || snap.lastMapNumber != 12 {
+		t.Errorf("spectated mode/map = %q/%d, want ARAM/12", snap.lastRawMode, snap.lastMapNumber)
+	}
+	if snap.startCalls == 0 {
+		t.Error("expected UpdateGameStart from spectate poll")
+	}
+	if snap.championCalls != 1 || snap.lastChampID != "Chogath" {
+		t.Errorf("champion writes = %d (%q), want 1 (Chogath), resolved once for the leading player", snap.championCalls, snap.lastChampID)
+	}
+	if resolver.resolveCalls() != 1 {
+		t.Errorf("resolveCalls = %d, want 1 (leading player resolved once, then cached)", resolver.resolveCalls())
+	}
+}
+
+func TestPoller_Spectating_NoPlayersLeavesChampionUnresolved(t *testing.T) {
+	d := newFakeDoer()
+	d.responses[baseURL+"/liveclientdata/allgamedata"] = `{"gameData":{"gameMode":"TFT","gameTime":50,"mapNumber":22},"allPlayers":[]}`
+	resolver := &fakeResolver{result: championdata.Resolution{ID: "should-not-be-used"}}
+	state := &fakeState{}
+	p := NewPoller(NewClient(d), resolver, state, storeWithInterval(testInterval), zerolog.Nop())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go p.RunSpectating(ctx)
+
+	waitFor(t, testTimeout, func() bool { return state.snapshot().spectatedCalls >= 2 })
+
+	if snap := state.snapshot(); snap.championCalls != 0 {
+		t.Errorf("championCalls = %d, want 0 when there are no players to read", snap.championCalls)
+	}
+	if resolver.resolveCalls() != 0 {
+		t.Errorf("resolveCalls = %d, want 0 when allPlayers is empty", resolver.resolveCalls())
 	}
 }
 

@@ -54,6 +54,56 @@ func TestDaemon_LiveGamePoller_StartsOnlyOnGameFlowInProgressAndStopsOtherwise(t
 	waitFor(t, testTimeout, func() bool { return !poller.running.Load() })
 }
 
+func TestDaemon_LiveGamePoller_SpectatingStartsSpectatePollerNotPlayPoller(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, _ := newTestDaemonDeps()
+	poller := &fakeLiveGamePoller{}
+	d := New(discordRunner, lcuRunner, updater, stateMgr, poller, zerolog.Nop(), testPollInterval, testPollInterval)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+
+	lcuRunner.connected.Store(true)
+	watching := state.NewState()
+	watching.GameFlowPhase = types.GameFlowWatching
+	stateMgr.Update(watching)
+
+	waitFor(t, testTimeout, func() bool { return poller.spectating.Load() })
+	if poller.startCount() != 0 {
+		t.Fatalf("startCount = %d, want 0: spectating must not start the play poller", poller.startCount())
+	}
+	if got := poller.spectateCount(); got != 1 {
+		t.Fatalf("spectateCount = %d, want 1", got)
+	}
+
+	// Leaving Watching cancels the spectate poller.
+	postGame := state.NewState()
+	postGame.GameFlowPhase = types.GameFlowEndOfGame
+	stateMgr.Update(postGame)
+	waitFor(t, testTimeout, func() bool { return !poller.spectating.Load() })
+}
+
+func TestDaemon_LiveGamePoller_SwapsBetweenPlayAndSpectate(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, _ := newTestDaemonDeps()
+	poller := &fakeLiveGamePoller{}
+	d := New(discordRunner, lcuRunner, updater, stateMgr, poller, zerolog.Nop(), testPollInterval, testPollInterval)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+	lcuRunner.connected.Store(true)
+
+	stateMgr.UpdateGameFlowPhase(string(types.GameFlowInProgress))
+	waitFor(t, testTimeout, func() bool { return poller.running.Load() })
+
+	stateMgr.UpdateGameFlowPhase(string(types.GameFlowWatching))
+	waitFor(t, testTimeout, func() bool { return poller.spectating.Load() && !poller.running.Load() })
+}
+
 func TestDaemon_LiveGamePoller_ClearsPreviousMatchChampionBeforeNextMatchStarts(t *testing.T) {
 	discordRunner := &fakeRunner{}
 	lcuRunner := &fakeLCURunner{}

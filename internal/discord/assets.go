@@ -13,6 +13,7 @@ const (
 	datadragonBaseURL      = "https://ddragon.leagueoflegends.com/cdn"
 	githubAssetsBaseURL    = "https://github.com/Its-Haze/league-assets/blob/master"
 	leagueLogoURL          = "https://github.com/Its-Haze/league-rpc/blob/master/assets/league-classic-borderless.jpg?raw=true"
+	leagueLogoLargeURL     = "https://github.com/Its-Haze/league-rpc/blob/master/assets/leagueoflegends.png?raw=true"
 	tftCompanionsBaseURL   = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/assets"
 )
 
@@ -122,6 +123,12 @@ func GetLeagueLogoURL() string {
 	return leagueLogoURL
 }
 
+// GetLeagueLogoLargeURL returns the square League of Legends logo used as
+// the large image when spectating a game whose champion can't be resolved.
+func GetLeagueLogoLargeURL() string {
+	return leagueLogoLargeURL
+}
+
 // GetTFTCompanionURL builds the URL for a TFT companion icon from the
 // lowercased path segment after "ASSETS/" in the LCU's loadoutsIcon field.
 func GetTFTCompanionURL(iconPath string) string {
@@ -168,6 +175,16 @@ func FormatGameModeName(gameMode types.GameMode) string {
 // FormatKDA formats KDA and CS into a display string
 func FormatKDA(kills, deaths, assists, cs int) string {
 	return fmt.Sprintf("%d/%d/%d · %dcs", kills, deaths, assists, cs)
+}
+
+// FormatArenaStats formats the Arena in-game stat line: KDA, level, gold.
+func FormatArenaStats(kills, deaths, assists, level, gold int) string {
+	return fmt.Sprintf("%d/%d/%d · lvl: %d · gold: %d", kills, deaths, assists, level, gold)
+}
+
+// FormatSwarmStats formats the Swarm in-game stat line: CS, level, gold.
+func FormatSwarmStats(cs, level, gold int) string {
+	return fmt.Sprintf("%dcs · lvl: %d · gold: %d", cs, level, gold)
 }
 
 // FormatSkinName formats the skin name for display, since most skin names

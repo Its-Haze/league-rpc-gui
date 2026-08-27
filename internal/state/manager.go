@@ -118,11 +118,14 @@ func (m *Manager) UpdateAvailability(availability string) {
 	})
 }
 
-// UpdateGameFlowPhase updates the current game flow phase. Entering
+// UpdateGameFlowPhase sets the phase, clearing last match's in-game data
+// when entering the InProgress/Watching cluster from outside it.
 func (m *Manager) UpdateGameFlowPhase(phase string) {
 	m.UpdateField(func(s *State) {
 		newPhase := types.GameFlowPhase(phase)
-		if newPhase == types.GameFlowInProgress && s.GameFlowPhase != types.GameFlowInProgress {
+		isGameLike := newPhase == types.GameFlowInProgress || newPhase == types.GameFlowWatching
+		wasGameLike := s.GameFlowPhase == types.GameFlowInProgress || s.GameFlowPhase == types.GameFlowWatching
+		if isGameLike && !wasGameLike {
 			resetInGameData(s)
 		}
 		s.GameFlowPhase = newPhase
@@ -191,6 +194,36 @@ func (m *Manager) UpdateGameStart(start int64) {
 	m.UpdateField(func(s *State) {
 		s.GameStartTime = start
 	})
+}
+
+// UpdateSpectatedGame records the game mode and map of a game being
+// spectated, both read from Live Client Data since there is no lobby.
+func (m *Manager) UpdateSpectatedGame(rawGameMode string, mapNumber int) {
+	m.UpdateField(func(s *State) {
+		if rawGameMode != "" {
+			s.GameMode = types.GameMode(rawGameMode)
+		}
+		if mapNumber != 0 {
+			s.MapID = types.MapID(mapNumber)
+		}
+	})
+}
+
+// UpdateApplicationStartTime records the League client's own start time.
+func (m *Manager) UpdateApplicationStartTime(start int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.current.ApplicationStartTime == start {
+		return
+	}
+	m.current.ApplicationStartTime = start
+
+	select {
+	case m.updates <- m.current.Copy():
+	default:
+		m.logger.Warn().Msg("State update channel full, dropping update")
+	}
 }
 
 // ClearInGameData resets last match's champion/skin/chroma, start time, and

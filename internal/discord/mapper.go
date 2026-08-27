@@ -26,6 +26,10 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		}
 		return BuildInGamePresence(st, cfg)
 
+	case types.GameFlowWatching:
+		// Spectating someone else's game.
+		return BuildSpectatingPresence(st, cfg)
+
 	case types.GameFlowChampSelect, types.GameFlowGameStart:
 		// Champion selection phase
 		return BuildInChampSelectPresence(st, cfg)

@@ -22,6 +22,7 @@ type StateUpdater interface {
 	UpdateChampion(championID, championName, skinName, chromaName string, skinID int)
 	UpdateInGameStats(kills, deaths, assists, cs, level, gold int)
 	UpdateGameStart(start int64)
+	UpdateSpectatedGame(rawGameMode string, mapNumber int)
 }
 
 // Poller polls Live Client Data for one match: champion/skin once, KDA/CS/timer
@@ -60,16 +61,28 @@ func (p *Poller) Run(ctx context.Context, gameMode types.GameMode) {
 		p.runTFT(ctx)
 		return
 	}
-	p.runNormal(ctx)
+	p.runNormal(ctx, gameMode)
+}
+
+// RunSpectating polls until ctx is canceled, driving presence for a game
+// being spectated rather than played. See runSpectating.
+func (p *Poller) RunSpectating(ctx context.Context) {
+	p.runSpectating(ctx)
+}
+
+// isLevelGoldMode reports whether a mode shows a level+gold stat line
+// instead of KDA+CS, so the poller knows to also read those each tick.
+func isLevelGoldMode(gameMode types.GameMode) bool {
+	return gameMode == types.GameModeArena || gameMode == types.GameModeSwarm
 }
 
 // runNormal resolves the local player's riotId, then champion/skin/chroma
-// once (cached for the match), and polls KDA/CS/gameTime every tick.
-func (p *Poller) runNormal(ctx context.Context) {
+func (p *Poller) runNormal(ctx context.Context, gameMode types.GameMode) {
 	var (
 		riotID   string
 		resolved bool
 	)
+	wantLevelGold := isLevelGoldMode(gameMode)
 
 	tick := func() {
 		if ctx.Err() != nil {
@@ -123,8 +136,58 @@ func (p *Poller) runNormal(ctx context.Context) {
 			return
 		}
 
-		p.state.UpdateInGameStats(scores.Kills, scores.Deaths, scores.Assists, scores.CreepScore, 0, 0)
+		level, gold := 0, 0
+		if wantLevelGold {
+			ap, aerr := p.client.ActivePlayer(ctx)
+			if aerr != nil {
+				return
+			}
+			level, gold = ap.Level, int(ap.CurrentGold)
+		}
+
+		p.state.UpdateInGameStats(scores.Kills, scores.Deaths, scores.Assists, scores.CreepScore, level, gold)
 		p.state.UpdateGameStart(time.Now().Unix() - int64(stats.GameTime))
+	}
+
+	p.loop(ctx, tick)
+}
+
+// runSpectating polls allgamedata for the spectated game's mode, map and
+// clock, and resolves the leading player's champion once. No local player.
+func (p *Poller) runSpectating(ctx context.Context) {
+	var resolved bool
+
+	tick := func() {
+		if ctx.Err() != nil {
+			return
+		}
+
+		allData, err := p.client.AllGameData(ctx)
+		if err != nil {
+			p.logger.Debug().Err(err).Msg("Spectate: allgamedata poll failed, will retry")
+			return
+		}
+
+		p.state.UpdateSpectatedGame(allData.GameData.GameMode, allData.GameData.MapNumber)
+		p.state.UpdateGameStart(time.Now().Unix() - int64(allData.GameData.GameTime))
+
+		if resolved || len(allData.AllPlayers) == 0 {
+			return
+		}
+		first := allData.AllPlayers[0]
+		res, rerr := p.resolver.Resolve(ctx, first.RawChampionName, first.RawSkinName, first.SkinID)
+		if rerr != nil {
+			p.logger.Debug().Err(rerr).
+				Str("rawChampionName", first.RawChampionName).
+				Msg("Spectate: leading player champion not resolved yet")
+			return
+		}
+		resolved = true
+		p.state.UpdateChampion(res.ID, res.Name, res.SkinName, res.ChromaName, res.BaseSkinID)
+		p.logger.Info().
+			Str("championID", res.ID).
+			Str("championName", res.Name).
+			Msg("Spectate: leading player champion/skin resolved")
 	}
 
 	p.loop(ctx, tick)

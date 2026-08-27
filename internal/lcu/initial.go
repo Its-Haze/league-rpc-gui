@@ -19,6 +19,12 @@ import (
 func (c *Client) gatherInitialData() error {
 	c.logger.Debug().Msg("Gathering initial data from League Client...")
 
+	// Get when the League client itself started, so the elapsed timer counts
+	// from client launch rather than daemon start.
+	if err := c.fetchApplicationStartTime(); err != nil {
+		c.logger.Debug().Err(err).Msg("Failed to fetch application start time")
+	}
+
 	// Get current summoner info
 	if err := c.fetchSummonerInfo(); err != nil {
 		c.logger.Warn().Err(err).Msg("Failed to fetch summoner info")
@@ -44,14 +50,156 @@ func (c *Client) gatherInitialData() error {
 		c.logger.Warn().Err(err).Msg("Failed to fetch gameflow phase")
 	}
 
-	// Get lobby info (if in lobby)
+	// /lol-lobby/v2/lobby only exists for a party lobby; fall back to the
+	// gameflow metadata endpoint, then to Live Client Data, when it 404s.
 	if err := c.fetchLobbyInfo(); err != nil {
-		c.logger.Debug().Err(err).Msg("Not in lobby or failed to fetch lobby info")
-		c.recoverGameModeFromLiveClientData()
+		c.logger.Debug().Err(err).Msg("No party lobby, trying gameflow metadata")
+		if err := c.fetchLobbyFromGameflowMetadata(); err != nil {
+			c.logger.Debug().Err(err).Msg("No gameflow lobby status either")
+			c.recoverGameModeFromLiveClientData()
+		}
 	}
 
 	c.logger.Debug().Msg("Initial data gathering complete")
 	return nil
+}
+
+// fetchApplicationStartTime records the epoch time the League client
+// process started, so the presence timer counts from client launch.
+func (c *Client) fetchApplicationStartTime() error {
+	resp, err := c.lcu.Get(constants.EndpointApplicationStartTime)
+	if err != nil {
+		return fmt.Errorf("get application start time: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("application start time status %d", resp.StatusCode)
+	}
+
+	var startTime int64
+	if err := json.NewDecoder(resp.Body).Decode(&startTime); err != nil {
+		return fmt.Errorf("decode application start time: %w", err)
+	}
+	if startTime <= 0 {
+		return fmt.Errorf("application start time not a positive epoch: %d", startTime)
+	}
+
+	c.state.UpdateApplicationStartTime(startTime)
+	c.logger.Debug().Int64("start_time", startTime).Msg("Updated application start time")
+	return nil
+}
+
+// fetchLobbyFromGameflowMetadata reads the current lobby's queue from the
+// gameflow metadata endpoint, which stays populated past the lobby phase.
+func (c *Client) fetchLobbyFromGameflowMetadata() error {
+	resp, err := c.lcu.Get(constants.EndpointGameflowMetadata)
+	if err != nil {
+		return fmt.Errorf("get gameflow metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("gameflow metadata status %d", resp.StatusCode)
+	}
+
+	// memberSummonerIds is decoded as raw elements: only its length matters,
+	// and the element type has changed across client versions.
+	var meta struct {
+		CurrentLobbyStatus *struct {
+			QueueID           int               `json:"queueId"`
+			LobbyID           string            `json:"lobbyId"`
+			MemberSummonerIds []json.RawMessage `json:"memberSummonerIds"`
+			IsCustom          bool              `json:"isCustom"`
+			IsPracticeTool    bool              `json:"isPracticeTool"`
+		} `json:"currentLobbyStatus"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+		return fmt.Errorf("decode gameflow metadata: %w", err)
+	}
+	if meta.CurrentLobbyStatus == nil {
+		return fmt.Errorf("no currentLobbyStatus in gameflow metadata")
+	}
+
+	ls := meta.CurrentLobbyStatus
+	c.resolveLobbyFromMetadata(ls.LobbyID, ls.QueueID, len(ls.MemberSummonerIds), ls.IsCustom, ls.IsPracticeTool)
+	return nil
+}
+
+// resolveLobbyFromMetadata writes lobby/queue state, filling name/map/mode
+// from custom-lobby defaults or /lol-game-queues, like updateLobbyState.
+func (c *Client) resolveLobbyFromMetadata(lobbyID string, queueID, players int, isCustom, isPractice bool) {
+	if isCustomOrPracticeQueue(queueID, isCustom, isPractice) {
+		name, mode, mapID, maxPlayers := customLobbyDefaults(queueID, isPractice)
+		if name == "Practice Tool" {
+			isPractice = true
+		} else {
+			isCustom = true
+		}
+		c.state.UpdateField(func(s *state.State) {
+			s.LobbyID = lobbyID
+			s.QueueID = types.QueueID(queueID)
+			s.Players = players
+			if maxPlayers > 0 {
+				s.MaxPlayers = maxPlayers
+			}
+			s.IsCustom = isCustom
+			s.IsPractice = isPractice
+			s.QueueName = name
+			s.QueueDetailedDescription = ""
+			s.GameMode = mode
+			s.MapID = mapID
+		})
+		return
+	}
+
+	info, err := c.fetchQueueInfo(queueID)
+	if err != nil {
+		c.logger.Warn().Err(err).Int("queue_id", queueID).Msg("Failed to fetch queue info from metadata path, keeping what we know")
+		c.state.UpdateField(func(s *state.State) {
+			s.LobbyID = lobbyID
+			s.QueueID = types.QueueID(queueID)
+			s.Players = players
+			s.IsCustom = isCustom
+			s.IsPractice = isPractice
+		})
+		return
+	}
+
+	c.state.UpdateField(func(s *state.State) {
+		s.LobbyID = lobbyID
+		s.QueueID = types.QueueID(queueID)
+		s.Players = players
+		s.IsCustom = isCustom
+		s.IsPractice = isPractice
+		s.QueueName = info.Name
+		s.QueueType = info.Type
+		s.QueueDescription = info.Description
+		s.QueueDetailedDescription = info.DetailedDescription
+		s.IsRanked = info.IsRanked
+		if info.MaxPlayers > 0 {
+			s.MaxPlayers = info.MaxPlayers
+		}
+		if info.MapID != 0 {
+			s.MapID = types.MapID(info.MapID)
+		}
+		if info.GameMode != "" {
+			s.GameMode = types.GameMode(info.GameMode)
+		}
+	})
+}
+
+// customLobbyDefaults returns name/mode/map/maxPlayers for a custom or
+// practice lobby, matching the reference's gather_base_data special-casing.
+func customLobbyDefaults(queueID int, isPractice bool) (name string, mode types.GameMode, mapID types.MapID, maxPlayers int) {
+	switch {
+	case queueID == queueIDPracticeTool || isPractice:
+		return "Practice Tool", "PRACTICETOOL", types.MapSummonersRift, 1
+	case isARAMCustomQueue(queueID):
+		return "Custom ARAM", "ARAM", types.MapHowlingAbyss, 0
+	default:
+		return "Custom Game", "PRACTICETOOL", types.MapSummonersRift, 0
+	}
 }
 
 // recoverGameModeFromLiveClientData sets GameMode (and, for Practice Tool,
@@ -172,8 +320,8 @@ func (c *Client) fetchRankedStats() error {
 			Tier         string `json:"tier"`
 			Division     string `json:"division"`
 			LeaguePoints int    `json:"leaguePoints"`
-			RatedTier    string `json:"ratedTier"`    // For Arena
-			RatedRating  int    `json:"ratedRating"`  // For Arena
+			RatedTier    string `json:"ratedTier"`   // For Arena
+			RatedRating  int    `json:"ratedRating"` // For Arena
 		} `json:"queues"`
 	}
 

@@ -40,12 +40,15 @@ type fakeLCURunner struct {
 func (r *fakeLCURunner) Connected() bool             { return r.connected.Load() }
 func (r *fakeLCURunner) LeagueProcessDetected() bool { return r.leagueDetected.Load() }
 
-// fakeLiveGamePoller stands in for *livegame.Poller; Run blocks until ctx is
+// fakeLiveGamePoller stands in for *livegame.Poller; Run/RunSpectating block
+// until ctx is canceled, recording which kind was started and how often.
 type fakeLiveGamePoller struct {
-	mu       sync.Mutex
-	starts   int
-	lastMode types.GameMode
-	running  atomic.Bool
+	mu         sync.Mutex
+	starts     int
+	spectates  int
+	lastMode   types.GameMode
+	running    atomic.Bool
+	spectating atomic.Bool
 }
 
 func (f *fakeLiveGamePoller) Run(ctx context.Context, gameMode types.GameMode) {
@@ -59,10 +62,26 @@ func (f *fakeLiveGamePoller) Run(ctx context.Context, gameMode types.GameMode) {
 	<-ctx.Done()
 }
 
+func (f *fakeLiveGamePoller) RunSpectating(ctx context.Context) {
+	f.mu.Lock()
+	f.spectates++
+	f.mu.Unlock()
+
+	f.spectating.Store(true)
+	defer f.spectating.Store(false)
+	<-ctx.Done()
+}
+
 func (f *fakeLiveGamePoller) startCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.starts
+}
+
+func (f *fakeLiveGamePoller) spectateCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.spectates
 }
 
 // fakePresenceSender stands in for a real Discord IPC connection; UpdatePresence

@@ -13,14 +13,16 @@ const (
 	DiscordAppIDLinux   = "1185274747836174377" // League of Linux
 
 	// LCU API Endpoints (for reference)
-	EndpointSummoner     = "/lol-summoner/v1/current-summoner"
-	EndpointGameflow     = "/lol-gameflow/v1/gameflow-phase"
-	EndpointChampSelect  = "/lol-champ-select/v1/session"
-	EndpointLobby        = "/lol-lobby/v2/lobby"
-	EndpointRankedStats  = "/lol-ranked/v1/current-ranked-stats"
-	EndpointChatStatus   = "/lol-chat/v1/me"
-	EndpointTFTCompanion = "/lol-cosmetics/v1/inventories/tft/companions"
-	EndpointGameQueues   = "/lol-game-queues/v1/queues"
+	EndpointSummoner             = "/lol-summoner/v1/current-summoner"
+	EndpointGameflow             = "/lol-gameflow/v1/gameflow-phase"
+	EndpointChampSelect          = "/lol-champ-select/v1/session"
+	EndpointLobby                = "/lol-lobby/v2/lobby"
+	EndpointRankedStats          = "/lol-ranked/v1/current-ranked-stats"
+	EndpointChatStatus           = "/lol-chat/v1/me"
+	EndpointTFTCompanion         = "/lol-cosmetics/v1/inventories/tft/companions"
+	EndpointGameQueues           = "/lol-game-queues/v1/queues"
+	EndpointGameflowMetadata     = "/lol-gameflow/v1/gameflow-metadata/player-status"
+	EndpointApplicationStartTime = "/telemetry/v1/application-start-time"
 
 	// In-Game API
 	InGameAPIURL        = "https://127.0.0.1:2999"

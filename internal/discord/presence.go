@@ -211,10 +211,18 @@ func BuildInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 
 	details := queueDisplayName(st)
 
-	// State: "In Game" plus KDA/CS if enabled
+	// State: "In Game" plus the mode-specific stat line if enabled. Arena
+	// and Swarm show level and gold; everything else shows KDA and CS.
 	gameState := "In Game"
 	if cfg.ShowStats {
-		gameState = "In Game · " + FormatKDA(st.Kills, st.Deaths, st.Assists, st.CreepScore)
+		switch st.GameMode {
+		case types.GameModeArena:
+			gameState = "In Game · " + FormatArenaStats(st.Kills, st.Deaths, st.Assists, st.Level, st.Gold)
+		case types.GameModeSwarm:
+			gameState = "In Game · " + FormatSwarmStats(st.CreepScore, st.Level, st.Gold)
+		default:
+			gameState = "In Game · " + FormatKDA(st.Kills, st.Deaths, st.Assists, st.CreepScore)
+		}
 	}
 
 	// Loading screen: GameStartTime isn't resolved yet, so fall back to now.
@@ -264,6 +272,40 @@ func BuildTFTInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 		SmallText:  smallText,
 		Details:    details,
 		State:      gameState,
+		Start:      start,
+	}
+}
+
+// BuildSpectatingPresence builds RPC data for when the player is spectating
+func BuildSpectatingPresence(st *state.State, cfg *config.Config) *RPCData {
+	largeImage := GetLeagueLogoLargeURL()
+	switch {
+	case st.ChampionID != "":
+		largeImage = GetChampionSkinURL(st.ChampionID, st.SkinID)
+	case st.MapID != 0:
+		largeImage = GetMapIconURL(st.MapID)
+	}
+
+	// Loading screen: GameStartTime isn't resolved yet, so fall back to now.
+	start := st.GameStartTime
+	if start == 0 {
+		start = time.Now().Unix()
+	}
+
+	// Discord rejects an empty details string; before the first spectate
+	// poll resolves the mode there may be nothing to show.
+	details := FormatGameModeName(st.GameMode)
+	if details == "" {
+		details = "League of Legends"
+	}
+
+	return &RPCData{
+		LargeImage: largeImage,
+		LargeText:  "Spectating",
+		SmallImage: GetLeagueLogoURL(),
+		SmallText:  constants.SmallText,
+		Details:    details,
+		State:      "Spectating",
 		Start:      start,
 	}
 }

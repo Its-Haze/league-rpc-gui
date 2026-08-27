@@ -62,6 +62,82 @@ func TestManager_UpdateGameFlowPhase_StayingInProgressDoesNotClearData(t *testin
 	}
 }
 
+func TestManager_UpdateGameFlowPhase_EnteringWatchingClearsPreviousMatchData(t *testing.T) {
+	m := NewManager(zerolog.Nop())
+	m.UpdateGameFlowPhase(string(types.GameFlowInProgress))
+	m.UpdateChampion("Ahri", "Ahri", "", "", 0)
+	m.UpdateInGameStats(5, 1, 3, 80, 0, 0)
+
+	m.UpdateGameFlowPhase(string(types.GameFlowEndOfGame))
+	m.UpdateGameFlowPhase(string(types.GameFlowWatching))
+
+	got := m.Get()
+	if got.ChampionID != "" || got.Kills != 0 {
+		t.Errorf("entering Watching must clear last match's champion/KDA: %+v", got)
+	}
+}
+
+func TestManager_UpdateGameFlowPhase_InProgressToWatchingDoesNotDoubleClear(t *testing.T) {
+	// InProgress -> Watching stays within the game-like cluster, so a champion
+	// resolved for one shouldn't be wiped just because the phase flipped.
+	m := NewManager(zerolog.Nop())
+	m.UpdateGameFlowPhase(string(types.GameFlowInProgress))
+	m.UpdateChampion("Ahri", "Ahri", "", "", 0)
+
+	m.UpdateGameFlowPhase(string(types.GameFlowWatching))
+
+	if got := m.Get().ChampionID; got != "Ahri" {
+		t.Errorf("ChampionID = %q, want Ahri kept across InProgress->Watching", got)
+	}
+}
+
+func TestManager_UpdateApplicationStartTime_NotifiesEvenThoughEqualsIgnoresIt(t *testing.T) {
+	m := NewManager(zerolog.Nop())
+	// Drain the buffered channel of any startup notification.
+	select {
+	case <-m.Updates():
+	default:
+	}
+
+	m.UpdateApplicationStartTime(1_700_000_000)
+
+	if got := m.Get().ApplicationStartTime; got != 1_700_000_000 {
+		t.Fatalf("ApplicationStartTime = %d, want 1700000000", got)
+	}
+	select {
+	case st := <-m.Updates():
+		if st.ApplicationStartTime != 1_700_000_000 {
+			t.Errorf("notified state ApplicationStartTime = %d", st.ApplicationStartTime)
+		}
+	default:
+		t.Error("UpdateApplicationStartTime did not notify listeners")
+	}
+
+	// Same value again: no-op, no notification.
+	m.UpdateApplicationStartTime(1_700_000_000)
+	select {
+	case <-m.Updates():
+		t.Error("re-setting the same start time should not notify")
+	default:
+	}
+}
+
+func TestManager_UpdateSpectatedGame_SetsModeAndMap(t *testing.T) {
+	m := NewManager(zerolog.Nop())
+	m.UpdateSpectatedGame("ARAM", 12)
+
+	got := m.Get()
+	if got.GameMode != types.GameModeARAM || got.MapID != types.MapID(12) {
+		t.Errorf("UpdateSpectatedGame() = mode %q map %d, want ARAM/12", got.GameMode, got.MapID)
+	}
+
+	// Zero values are treated as "unknown" and left alone.
+	m.UpdateSpectatedGame("", 0)
+	if got := m.Get(); got.GameMode != types.GameModeARAM || got.MapID != types.MapID(12) {
+		t.Errorf("empty UpdateSpectatedGame() overwrote known values: %+v", got)
+	}
+}
+
 func TestState_Equals_DetectsTFTCompanionDescriptionChange(t *testing.T) {
 	a := NewState()
 	a.TFTCompanionDescription = "one"

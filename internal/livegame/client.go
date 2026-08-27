@@ -24,8 +24,9 @@ type HTTPDoer interface {
 
 // ActivePlayer is the response shape of /liveclientdata/activeplayer.
 type ActivePlayer struct {
-	RiotID string `json:"riotId"`
-	Level  int    `json:"level"`
+	RiotID      string  `json:"riotId"`
+	Level       int     `json:"level"`
+	CurrentGold float64 `json:"currentGold"`
 }
 
 // Player is one entry in AllGameData's allPlayers list.
@@ -38,7 +39,9 @@ type Player struct {
 
 // GameData is the "gameData" object in AllGameData's response.
 type GameData struct {
-	GameMode string `json:"gameMode"`
+	GameMode  string  `json:"gameMode"`
+	GameTime  float64 `json:"gameTime"`
+	MapNumber int     `json:"mapNumber"`
 }
 
 // AllGameData is the response shape of /liveclientdata/allgamedata.

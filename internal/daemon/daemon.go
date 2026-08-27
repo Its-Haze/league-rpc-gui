@@ -33,9 +33,9 @@ type lcuRunner interface {
 }
 
 // liveGamePoller polls Live Client Data for champion/skin/KDA/timer detail
-// while GameFlowInProgress is active. *livegame.Poller satisfies this.
 type liveGamePoller interface {
 	Run(ctx context.Context, gameMode types.GameMode)
+	RunSpectating(ctx context.Context)
 }
 
 // presenceMode is what Daemon currently shows on Discord. See ADR-0002.
@@ -143,26 +143,44 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 		d.updater.UpdatePlaceholder(discord.BuildLaunchingPresence(placeholderStart))
 	}
 
+	// The live game poller runs in one of two modes while mode == modeConnected:
+	// "playing" during GameFlowInProgress, "spectating" during GameFlowWatching.
+	const (
+		liveNone = iota
+		livePlaying
+		liveSpectating
+	)
 	var liveGameCancel context.CancelFunc
-	liveGameActive := false
+	liveGameKind := liveNone
 
-	startLiveGame := func(gameMode types.GameMode) {
-		if liveGameActive {
+	var stopLiveGame func()
+	stopLiveGame = func() {
+		if liveGameKind == liveNone {
 			return
 		}
-		liveGameActive = true
-		// The previous match's in-game data is already cleared by
+		liveGameKind = liveNone
+		liveGameCancel()
+		liveGameCancel = nil
+	}
+	startPlaying := func(gameMode types.GameMode) {
+		if liveGameKind == livePlaying {
+			return
+		}
+		stopLiveGame()
+		liveGameKind = livePlaying
 		var gameCtx context.Context
 		gameCtx, liveGameCancel = context.WithCancel(ctx)
 		go d.liveGame.Run(gameCtx, gameMode)
 	}
-	stopLiveGame := func() {
-		if !liveGameActive {
+	startSpectating := func() {
+		if liveGameKind == liveSpectating {
 			return
 		}
-		liveGameActive = false
-		liveGameCancel()
-		liveGameCancel = nil
+		stopLiveGame()
+		liveGameKind = liveSpectating
+		var gameCtx context.Context
+		gameCtx, liveGameCancel = context.WithCancel(ctx)
+		go d.liveGame.RunSpectating(gameCtx)
 	}
 	defer stopLiveGame()
 
@@ -226,9 +244,12 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 					mode = modeConnected
 				}
 
-				if st.GameFlowPhase == types.GameFlowInProgress {
-					startLiveGame(st.GameMode)
-				} else {
+				switch st.GameFlowPhase {
+				case types.GameFlowInProgress:
+					startPlaying(st.GameMode)
+				case types.GameFlowWatching:
+					startSpectating()
+				default:
 					stopLiveGame()
 				}
 

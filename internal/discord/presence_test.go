@@ -106,6 +106,101 @@ func TestBuildInGamePresence_StatePrefixedWithInGame(t *testing.T) {
 	}
 }
 
+func TestBuildInGamePresence_ArenaAndSwarmShowLevelAndGold(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.ShowStats = true
+
+	arena := state.NewState()
+	arena.GameMode = types.GameModeArena
+	arena.Kills, arena.Deaths, arena.Assists = 4, 1, 7
+	arena.Level, arena.Gold = 14, 8200
+	if got := BuildInGamePresence(arena, cfg).State; got != "In Game · 4/1/7 · lvl: 14 · gold: 8200" {
+		t.Errorf("Arena State = %q", got)
+	}
+
+	swarm := state.NewState()
+	swarm.GameMode = types.GameModeSwarm
+	swarm.CreepScore = 240
+	swarm.Level, swarm.Gold = 9, 1500
+	if got := BuildInGamePresence(swarm, cfg).State; got != "In Game · 240cs · lvl: 9 · gold: 1500" {
+		t.Errorf("Swarm State = %q", got)
+	}
+
+	// A normal mode still shows KDA + CS, unchanged.
+	sr := state.NewState()
+	sr.GameMode = types.GameModeClassic
+	sr.Kills, sr.Deaths, sr.Assists, sr.CreepScore = 3, 2, 5, 120
+	if got := BuildInGamePresence(sr, cfg).State; got != "In Game · 3/2/5 · 120cs" {
+		t.Errorf("Classic State = %q", got)
+	}
+}
+
+func TestBuildSpectatingPresence(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	t.Run("champion resolved: skin tile as large image", func(t *testing.T) {
+		st := state.NewState()
+		st.GameFlowPhase = types.GameFlowWatching
+		st.GameMode = types.GameModeARAM
+		st.ChampionID = "Chogath"
+		st.SkinID = 1
+		st.GameStartTime = 5000
+
+		got := BuildSpectatingPresence(st, cfg)
+		if got.LargeText != "Spectating" || got.State != "Spectating" {
+			t.Errorf("LargeText/State = %q/%q, want Spectating/Spectating", got.LargeText, got.State)
+		}
+		if got.Details != "Howling Abyss (ARAM)" {
+			t.Errorf("Details = %q, want the game mode display name", got.Details)
+		}
+		if got.LargeImage != GetChampionSkinURL("Chogath", 1) {
+			t.Errorf("LargeImage = %q, want the champion skin tile", got.LargeImage)
+		}
+		if got.Start != 5000 {
+			t.Errorf("Start = %d, want 5000 (from GameStartTime)", got.Start)
+		}
+	})
+
+	t.Run("champion unresolved: map icon as large image", func(t *testing.T) {
+		st := state.NewState()
+		st.GameFlowPhase = types.GameFlowWatching
+		st.GameMode = types.GameModeARAM
+		st.MapID = types.MapHowlingAbyss
+
+		got := BuildSpectatingPresence(st, cfg)
+		if got.LargeImage != GetMapIconURL(types.MapHowlingAbyss) {
+			t.Errorf("LargeImage = %q, want the map icon", got.LargeImage)
+		}
+	})
+
+	t.Run("nothing resolved: league logo as large image", func(t *testing.T) {
+		st := state.NewState()
+		st.GameFlowPhase = types.GameFlowWatching
+		st.GameMode = ""
+		st.MapID = 0
+
+		got := BuildSpectatingPresence(st, cfg)
+		if got.LargeImage != GetLeagueLogoLargeURL() {
+			t.Errorf("LargeImage = %q, want the league logo", got.LargeImage)
+		}
+		if got.Details == "" {
+			t.Error("Details must never be empty (Discord rejects it)")
+		}
+	})
+}
+
+func TestMapStateToPresence_WatchingRoutesToSpectating(t *testing.T) {
+	cfg := config.DefaultConfig()
+	st := state.NewState()
+	st.GameFlowPhase = types.GameFlowWatching
+	st.GameMode = types.GameModeClassic
+
+	got := MapStateToPresence(st, cfg)
+	if got.State != "Spectating" {
+		t.Errorf("State = %q, want Spectating", got.State)
+	}
+}
+
 func TestBuildTFTInGamePresence_UsesResolvedGameStartTime(t *testing.T) {
 	cfg := config.DefaultConfig()
 	st := state.NewState()
