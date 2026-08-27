@@ -93,13 +93,13 @@ func TestBuildInGamePresence_StatePrefixedWithInGame(t *testing.T) {
 	st := state.NewState()
 	st.Kills, st.Deaths, st.Assists, st.CreepScore = 3, 2, 5, 120
 
-	cfg.ShowStats = true
+	cfg.Display.Default.ShowStats = true
 	got := BuildInGamePresence(st, cfg)
 	if want := "In Game · 3/2/5 · 120cs"; got.State != want {
 		t.Errorf("State (stats shown) = %q, want %q", got.State, want)
 	}
 
-	cfg.ShowStats = false
+	cfg.Display.Default.ShowStats = false
 	got = BuildInGamePresence(st, cfg)
 	if want := "In Game"; got.State != want {
 		t.Errorf("State (stats hidden) = %q, want %q", got.State, want)
@@ -108,7 +108,7 @@ func TestBuildInGamePresence_StatePrefixedWithInGame(t *testing.T) {
 
 func TestBuildInGamePresence_ArenaAndSwarmShowLevelAndGold(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.ShowStats = true
+	cfg.Display.Default.ShowStats = true
 
 	arena := state.NewState()
 	arena.GameMode = types.GameModeArena
@@ -243,7 +243,7 @@ func TestBuildInCustomLobbyPresence_DetailsIsRawQueueNameStateIsFixed(t *testing
 
 func TestBuildInLobbyPresence_RankKnownSwapsLargeTextToCredit(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.ShowRank = true
+	cfg.Display.Default.ShowRank = true
 	st := state.NewState()
 	st.QueueID = types.QueueSoloQ
 	st.SummonerRank = types.RankedStats{Tier: types.TierGold, Division: types.DivisionIV, LeaguePoints: 40}
@@ -288,7 +288,7 @@ func TestMapStateToPresence_InProgressWithResolvedChampionUsesInGamePresence(t *
 
 func TestBuildInGamePresence_RankKnownDoesNotSwapLargeText(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.ShowRank = true
+	cfg.Display.Default.ShowRank = true
 	st := state.NewState()
 	st.ChampionName = "Ahri"
 	st.QueueID = types.QueueSoloQ

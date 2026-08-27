@@ -21,7 +21,7 @@ const (
 
 // storeWithInterval builds a config.Store whose StatsPollingInterval equals d.
 func storeWithInterval(d time.Duration) *config.Store {
-	return config.NewStore(&config.Config{StatsPollingInterval: int(d / time.Millisecond)})
+	return config.NewStore(&config.Config{Advanced: config.AdvancedConfig{StatsPollingInterval: int(d / time.Millisecond)}})
 }
 
 // fakeResolver lets tests control what championdata.Resolve returns without
@@ -393,7 +393,7 @@ func TestPoller_PicksUpStatsPollingIntervalChangeMidRun(t *testing.T) {
 	state := &fakeState{}
 
 	// Start well above the valid floor so only the initial tick fires soon.
-	store := config.NewStore(&config.Config{StatsPollingInterval: 20000})
+	store := config.NewStore(&config.Config{Advanced: config.AdvancedConfig{StatsPollingInterval: 20000}})
 	p := NewPoller(NewClient(d), resolver, state, store, zerolog.Nop())
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -403,7 +403,7 @@ func TestPoller_PicksUpStatsPollingIntervalChangeMidRun(t *testing.T) {
 	waitFor(t, testTimeout, func() bool { return state.snapshot().statsCalls == 1 })
 
 	next := config.DefaultConfig()
-	next.StatsPollingInterval = config.MinStatsPollingInterval // 1s, the fastest allowed
+	next.Advanced.StatsPollingInterval = config.MinStatsPollingInterval // 1s, the fastest allowed
 	if err := store.Apply(*next); err != nil {
 		t.Fatalf("Apply failed: %v", err)
 	}

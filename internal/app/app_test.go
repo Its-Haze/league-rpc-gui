@@ -12,15 +12,15 @@ func TestApp_ApplySettingsPersistsAndGetReflects(t *testing.T) {
 	a := New(store)
 
 	cfg := a.GetSettings()
-	cfg.ShowStats = false
-	cfg.UpdateInterval = 2500
+	cfg.Display.Default.ShowStats = false
+	cfg.Advanced.UpdateInterval = 2500
 
 	if err := a.ApplySettings(cfg); err != nil {
 		t.Fatalf("ApplySettings failed: %v", err)
 	}
 
 	got := a.GetSettings()
-	if got.ShowStats || got.UpdateInterval != 2500 {
+	if got.Display.Default.ShowStats || got.Advanced.UpdateInterval != 2500 {
 		t.Fatalf("GetSettings did not reflect the change: %+v", got)
 	}
 }

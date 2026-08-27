@@ -245,7 +245,7 @@ func TestDaemon_PresenceFollowsStateChangesOnceConnected(t *testing.T) {
 	updater, stateMgr, sender := newTestDaemonDeps()
 	// UpdateInterval controls DelayUpdate's debounce; keep it short for the test.
 	cfg := config.DefaultConfig()
-	cfg.UpdateInterval = 1
+	cfg.Advanced.UpdateInterval = 1
 	updater = discord.NewUpdater(sender, config.NewStore(cfg), zerolog.Nop())
 	d := New(discordRunner, lcuRunner, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
 
@@ -289,7 +289,7 @@ func TestDaemon_ResendsPresenceOnConfigChangeWhileConnected(t *testing.T) {
 	// A config change alone, no state change, must trigger an immediate resend.
 	before := sender.sendCount()
 	next := *config.DefaultConfig()
-	next.ShowRank = !next.ShowRank
+	next.Display.Default.ShowRank = !next.Display.Default.ShowRank
 	if err := store.Apply(next); err != nil {
 		t.Fatalf("Apply failed: %v", err)
 	}

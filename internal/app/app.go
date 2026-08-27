@@ -30,3 +30,9 @@ func (a *App) ApplySettings(cfg config.Config) error {
 func (a *App) GetPresets() map[string]string {
 	return config.DiscordAppIDPresets()
 }
+
+// SubscribeSettings returns a channel that receives the new settings on every
+// successful ApplySettings. The GUI adapter forwards these to the frontend.
+func (a *App) SubscribeSettings() <-chan *config.Config {
+	return a.store.Subscribe()
+}

@@ -51,7 +51,7 @@ func NewPoller(client *Client, resolver ChampionResolver, state StateUpdater, st
 
 // tickInterval is the current Live Client Data poll cadence.
 func (p *Poller) tickInterval() time.Duration {
-	return time.Duration(p.store.Load().StatsPollingInterval) * time.Millisecond
+	return time.Duration(p.store.Load().Advanced.StatsPollingInterval) * time.Millisecond
 }
 
 // Run polls until ctx is canceled, routing to the TFT or non-TFT tick logic

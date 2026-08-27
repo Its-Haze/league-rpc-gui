@@ -26,7 +26,7 @@ func queueDisplayName(st *state.State) string {
 func BuildInClientPresence(st *state.State, cfg *config.Config) *RPCData {
 	// Build details with emoji if enabled
 	details := string(st.Availability)
-	if cfg.ShowEmojis {
+	if cfg.Presence.ShowEmojis {
 		emoji := "🟢"
 		if st.Availability == types.AvailabilityAway {
 			emoji = "🔴"
@@ -60,7 +60,7 @@ func BuildInLobbyPresence(st *state.State, cfg *config.Config) *RPCData {
 
 	// Rank known: swap the tooltip for the credit line, small image/text for
 	// the rank emblem/tier.
-	if cfg.ShowRank {
+	if cfg.Display.Default.ShowRank {
 		rankEmblemURL, rankText := getRankForQueue(st, st.QueueID)
 		if rankEmblemURL != "" {
 			largeText = constants.SmallText
@@ -116,7 +116,7 @@ func BuildInQueuePresence(st *state.State, cfg *config.Config) *RPCData {
 
 	// Rank known: swap the tooltip for the credit line, small image/text for
 	// the rank emblem/tier.
-	if cfg.ShowRank {
+	if cfg.Display.Default.ShowRank {
 		rankEmblemURL, rankText := getRankForQueue(st, st.QueueID)
 		if rankEmblemURL != "" {
 			largeText = constants.SmallText
@@ -158,7 +158,7 @@ func BuildInChampSelectPresence(st *state.State, cfg *config.Config) *RPCData {
 
 	// Rank known: swap the tooltip for the credit line, small image/text for
 	// the rank emblem/tier.
-	if cfg.ShowRank {
+	if cfg.Display.Default.ShowRank {
 		rankEmblemURL, rankText := getRankForQueue(st, st.QueueID)
 		if rankEmblemURL != "" {
 			largeText = constants.SmallText
@@ -197,7 +197,7 @@ func BuildInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 
 	// Show rank emblem if enabled. Unlike Lobby/Queue/ChampSelect, largeText
 	// stays the skin name here rather than swapping to the credit line.
-	if cfg.ShowRank {
+	if cfg.Display.Default.ShowRank {
 		rankEmblemURL, rankText := getRankForQueue(st, st.QueueID)
 		if rankEmblemURL != "" {
 			smallImage = rankEmblemURL
@@ -214,7 +214,7 @@ func BuildInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 	// State: "In Game" plus the mode-specific stat line if enabled. Arena
 	// and Swarm show level and gold; everything else shows KDA and CS.
 	gameState := "In Game"
-	if cfg.ShowStats {
+	if cfg.Display.Default.ShowStats {
 		switch st.GameMode {
 		case types.GameModeArena:
 			gameState = "In Game · " + FormatArenaStats(st.Kills, st.Deaths, st.Assists, st.Level, st.Gold)
@@ -250,7 +250,7 @@ func BuildTFTInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 	smallText := constants.SmallText
 
 	// Use TFT rank if available
-	if cfg.ShowRank && !st.TFTRank.IsEmpty() {
+	if cfg.Display.Default.ShowRank && !st.TFTRank.IsEmpty() {
 		smallImage = GetRankEmblemURL(st.TFTRank.Tier)
 		smallText = st.TFTRank.String()
 	}

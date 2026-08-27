@@ -20,20 +20,20 @@ func TestStore_ApplySwapsPersistsAndNotifies(t *testing.T) {
 	sub := s.Subscribe()
 
 	next := *DefaultConfig()
-	next.ShowRank = false
-	next.UpdateInterval = 2000
+	next.Display.Default.ShowRank = false
+	next.Advanced.UpdateInterval = 2000
 
 	if err := s.Apply(next); err != nil {
 		t.Fatalf("Apply returned error: %v", err)
 	}
 
-	if s.Load().ShowRank || s.Load().UpdateInterval != 2000 {
+	if s.Load().Display.Default.ShowRank || s.Load().Advanced.UpdateInterval != 2000 {
 		t.Fatalf("Load did not reflect applied config: %+v", s.Load())
 	}
 
 	select {
 	case got := <-sub:
-		if got.UpdateInterval != 2000 {
+		if got.Advanced.UpdateInterval != 2000 {
 			t.Fatalf("subscriber got stale config: %+v", got)
 		}
 	default:
@@ -56,7 +56,7 @@ func TestStore_ApplyRejectsInvalidAndKeepsOld(t *testing.T) {
 	sub := s.Subscribe()
 
 	bad := *DefaultConfig()
-	bad.UpdateInterval = 10 // below MinUpdateInterval
+	bad.Advanced.UpdateInterval = 10 // below MinUpdateInterval
 
 	if err := s.Apply(bad); err == nil {
 		t.Fatal("Apply accepted an out-of-range UpdateInterval")
@@ -78,19 +78,19 @@ func TestStore_SubscribeCoalescesForSlowSubscriber(t *testing.T) {
 
 	for _, iv := range []int{1000, 2000, 3000} {
 		next := *DefaultConfig()
-		next.UpdateInterval = iv
+		next.Advanced.UpdateInterval = iv
 		if err := s.Apply(next); err != nil {
 			t.Fatalf("Apply(%d) failed: %v", iv, err)
 		}
 	}
 
 	got := <-sub
-	if got.UpdateInterval != 3000 {
-		t.Fatalf("coalesced subscriber got %d, want the latest 3000", got.UpdateInterval)
+	if got.Advanced.UpdateInterval != 3000 {
+		t.Fatalf("coalesced subscriber got %d, want the latest 3000", got.Advanced.UpdateInterval)
 	}
 	select {
 	case extra := <-sub:
-		t.Fatalf("expected only the latest value buffered, also got %d", extra.UpdateInterval)
+		t.Fatalf("expected only the latest value buffered, also got %d", extra.Advanced.UpdateInterval)
 	default:
 	}
 }

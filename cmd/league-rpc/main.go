@@ -19,7 +19,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load configuration")
 	}
 
-	logger := newLogger(cfg.DebugMode)
+	logger := newLogger(cfg.Advanced.DebugMode)
 	store := config.NewStore(cfg)
 	d := daemon.Wire(store, logger)
 

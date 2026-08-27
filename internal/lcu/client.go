@@ -47,8 +47,8 @@ func (c *Client) Connect() error {
 	cfg := c.store.Load()
 	lcuConfig := lcu.DefaultConfig()
 	lcuConfig.AwaitConnection = true // Wait for LCU to start
-	lcuConfig.Debug = cfg.DebugMode
-	lcuConfig.LeaguePath = cfg.LeaguePath
+	lcuConfig.Debug = cfg.Advanced.DebugMode
+	lcuConfig.LeaguePath = cfg.Behavior.LeaguePath
 
 	// Create LCU client
 	var err error

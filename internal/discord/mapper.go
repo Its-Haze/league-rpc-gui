@@ -63,7 +63,7 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 // ShouldClearPresence returns true if presence should be cleared instead of updated
 // This happens when the user has --hide-in-client enabled and is idle
 func ShouldClearPresence(st *state.State, cfg *config.Config) bool {
-	if !cfg.ShowInClient && st.GameFlowPhase.IsInClient() {
+	if !cfg.Presence.ShowInClient && st.GameFlowPhase.IsInClient() {
 		return true
 	}
 	return false

@@ -50,3 +50,31 @@ _Avoid_: app, process, service
 **Connection Supervisor**:
 The component that owns retrying a connection (to Discord, or to the LCU) forever. A closed League client or a closed Discord client is expected: it resumes the retry loop, never exits the Daemon. No LCU connection means no Discord presence, cleared immediately with no grace period. The one exception: while League's process is running but the LCU hasn't connected yet, the placeholder rotation shows instead (see `Updater`). The Discord Connection Supervisor is additionally gated on League's own process: it never connects to Discord, and disconnects if already connected, whenever League isn't running. See [ADR-0003](./docs/adr/0003-discord-connection-gated-by-league.md).
 _Avoid_: reconnect logic, watchdog
+
+**GUI**:
+The Wails-hosted settings-and-status window. It runs in the same process as the Daemon, not a separate one: closing it hides the window and leaves the Daemon running; there is no GUI-to-Daemon IPC. See [ADR-0004](./docs/adr/0004-gui-process-hosts-the-daemon.md).
+_Avoid_: frontend (for the process), app
+
+**Tray**:
+The system-tray icon the Daemon owns. Left-click shows the `GUI`. Right-click menu is `Open`, `Pause presence`, `Quit`. Only `Quit` stops the Daemon; everything else only affects the window or presence.
+
+**Pause**:
+A runtime-only flag, never written to `Config`. While paused, Discord presence is cleared immediately, the same as League not running. It resets to unpaused whenever the Daemon restarts, so a forgotten pause can't outlive a session.
+
+**Startup Launch**:
+The `HKCU\...\CurrentVersion\Run` registration that makes Windows start the app at logon. It is reconciled to `Config`'s launch-at-startup setting on every launch. A run started this way opens hidden to the `Tray`, not with the `GUI` shown.
+_Avoid_: autostart, Task Scheduler (it is not used)
+
+**Presence Template**:
+A user-editable `details` and `state` string pair, one pair per context: in-client, champ select, in-game, spectating (the `Watching` phase). Templates use plain `{token}` substitution, no logic. One Go engine renders them for real sends and for the `GUI` preview; there is no second implementation. A token with no data at send time resolves to empty and surrounding whitespace and separators collapse.
+_Avoid_: format string, text/template (it is not Go's template package)
+
+**Mode Override**:
+An optional per-`GameMode` override of the global "show rank" / "show stats" defaults. The unit is the `GameMode` display concept (League Classic, ARAM, Arena, ...), never a queue ID: Solo and Flex share one override. No other display setting is per-mode.
+
+**Status Snapshot**:
+The read model the `GUI` renders: the three connection states (League process, LCU, Discord), the current `GameFlowPhase`, and the presence the `Updater` last sent. Assembled from `State` and the supervisors' accessors and pushed to the `GUI` on change. The preview is always the last-sent presence, never a recomputation, so it cannot drift from what Discord actually shows.
+
+**App Update**:
+The in-app self-update flow: check GitHub Releases, download the new binary, verify its ed25519 signature against the `SHA256SUMS` sidecar, swap it, restart. Distinct from `Updater`, which is only about Discord presence sends. Downloads happen on user click, never silently in the background. See [ADR-0005](./docs/adr/0005-in-app-update-via-signed-binary-swap.md).
+_Avoid_: Updater, upgrader

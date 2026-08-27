@@ -1,0 +1,62 @@
+/* Design tokens for the League RPC GUI. Values are provisional and get a */
+:root {
+  --color-bg: #f7f7f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f0f1f4;
+  --color-border: #d9dbe1;
+  --color-text: #1b1d23;
+  --color-text-muted: #5c606b;
+  --color-accent: #6d5efc;
+  --color-accent-text: #ffffff;
+  --color-ok: #2f9e56;
+  --color-warn: #c9781a;
+  --color-danger: #cc3944;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Mono", ui-monospace, "SFMono-Regular", monospace;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1117;
+    --color-surface: #171a21;
+    --color-surface-raised: #1f232c;
+    --color-border: #2c313c;
+    --color-text: #e7e9ee;
+    --color-text-muted: #9aa0ac;
+    --color-accent: #8a7dff;
+    --color-accent-text: #10121a;
+    --color-ok: #4cc177;
+    --color-warn: #e0983f;
+    --color-danger: #e0616b;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0f1117;
+  --color-surface: #171a21;
+  --color-surface-raised: #1f232c;
+  --color-border: #2c313c;
+  --color-text: #e7e9ee;
+  --color-text-muted: #9aa0ac;
+  --color-accent: #8a7dff;
+  --color-accent-text: #10121a;
+  --color-ok: #4cc177;
+  --color-warn: #e0983f;
+  --color-danger: #e0616b;
+}

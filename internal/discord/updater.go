@@ -199,7 +199,7 @@ func (u *Updater) DelayUpdate(newState *state.State) {
 	stateCopy := newState.Copy()
 
 	// Calculate delay from config (convert ms to duration)
-	delay := time.Duration(u.store.Load().UpdateInterval) * time.Millisecond
+	delay := time.Duration(u.store.Load().Advanced.UpdateInterval) * time.Millisecond
 
 	// Start new timer
 	u.timer = time.AfterFunc(delay, func() {
