@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/its-haze/league-rpc/internal/discord"
@@ -60,6 +61,11 @@ type Daemon struct {
 
 	presencePollInterval time.Duration
 	placeholderInterval  time.Duration
+
+	// paused is a runtime flag, never persisted to Config. It starts false
+	// on every Daemon and clears presence for as long as it is set.
+	paused      atomic.Bool
+	pauseSignal chan struct{}
 }
 
 // New builds a Daemon that drives presence from stateMgr through updater.
@@ -81,8 +87,22 @@ func New(
 		logger:               logger,
 		presencePollInterval: presencePollInterval,
 		placeholderInterval:  placeholderInterval,
+		pauseSignal:          make(chan struct{}, 1),
 	}
 }
+
+// SetPaused sets the runtime pause flag and wakes the presence loop so it
+// takes effect at once. Paused clears presence; unpausing resumes it.
+func (d *Daemon) SetPaused(paused bool) {
+	d.paused.Store(paused)
+	select {
+	case d.pauseSignal <- struct{}{}:
+	default:
+	}
+}
+
+// IsPaused reports the pause flag. A fresh Daemon is always unpaused.
+func (d *Daemon) IsPaused() bool { return d.paused.Load() }
 
 // Run starts both supervisors and the presence loop, and blocks until ctx
 // is canceled; a connection failure on either side never returns early.
@@ -184,6 +204,89 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 	}
 	defer stopLiveGame()
 
+	// reconcile picks the presence mode from the current connection and pause
+	// state. It runs on every poll tick and on any pause-flag change.
+	reconcile := func() {
+		// Pause is a runtime flag: while set, hold presence cleared the same
+		// way League-not-running does, and skip the rest of the decision.
+		if d.paused.Load() {
+			stopPlaceholder()
+			stopLiveGame()
+			if mode != modeCleared {
+				d.updater.ClearPresence()
+				mode = modeCleared
+			}
+			return
+		}
+
+		// Discord can connect after the LCU already has; resend the
+		// current mode's presence instead of waiting for a state change.
+		nowConnected := d.discord.Connected()
+		if nowConnected && !discordConnected {
+			switch mode {
+			case modeConnected:
+				d.updater.ImmediateUpdate(d.state.Get())
+			case modePlaceholder:
+				sendPlaceholder()
+			}
+		}
+		discordConnected = nowConnected
+
+		// League is up but Discord isn't reachable yet: log it once per
+		// edge, not on every poll tick, so it isn't spammy.
+		if d.lcu.LeagueProcessDetected() && !nowConnected {
+			if !waitingForDiscordLogged {
+				d.logger.Info().Msg("League is running, waiting for Discord to be reachable")
+				waitingForDiscordLogged = true
+			}
+		} else {
+			waitingForDiscordLogged = false
+		}
+
+		switch {
+		case d.lcu.Connected():
+			st := d.state.Get()
+			if mode != modeConnected {
+				stopPlaceholder()
+				// Skip while Discord isn't connected yet; the reconnect handler above resends once it is.
+				if d.discord.Connected() {
+					d.updater.ImmediateUpdate(st)
+				}
+				mode = modeConnected
+			}
+
+			switch st.GameFlowPhase {
+			case types.GameFlowInProgress:
+				startPlaying(st.GameMode)
+			case types.GameFlowWatching:
+				startSpectating()
+			default:
+				stopLiveGame()
+			}
+
+		case d.lcu.LeagueProcessDetected():
+			if mode != modePlaceholder {
+				mode = modePlaceholder
+				placeholderStart = time.Now().Unix()
+				sendPlaceholder()
+				placeholderTicker = time.NewTicker(d.placeholderInterval)
+				placeholderC = placeholderTicker.C
+			}
+
+		default:
+			if mode != modeCleared {
+				stopPlaceholder()
+				d.updater.ClearPresence()
+				mode = modeCleared
+			}
+		}
+
+		// The live game poller only ever runs while mode == modeConnected
+		if mode != modeConnected {
+			stopLiveGame()
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -207,73 +310,11 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 		case <-placeholderC:
 			sendPlaceholder()
 
+		case <-d.pauseSignal:
+			reconcile()
+
 		case <-ticker.C:
-			// Discord can connect after the LCU already has; resend the
-			// current mode's presence instead of waiting for a state change.
-			nowConnected := d.discord.Connected()
-			if nowConnected && !discordConnected {
-				switch mode {
-				case modeConnected:
-					d.updater.ImmediateUpdate(d.state.Get())
-				case modePlaceholder:
-					sendPlaceholder()
-				}
-			}
-			discordConnected = nowConnected
-
-			// League is up but Discord isn't reachable yet: log it once per
-			// edge, not on every poll tick, so it isn't spammy.
-			if d.lcu.LeagueProcessDetected() && !nowConnected {
-				if !waitingForDiscordLogged {
-					d.logger.Info().Msg("League is running, waiting for Discord to be reachable")
-					waitingForDiscordLogged = true
-				}
-			} else {
-				waitingForDiscordLogged = false
-			}
-
-			switch {
-			case d.lcu.Connected():
-				st := d.state.Get()
-				if mode != modeConnected {
-					stopPlaceholder()
-					// Skip while Discord isn't connected yet; the reconnect handler above resends once it is.
-					if d.discord.Connected() {
-						d.updater.ImmediateUpdate(st)
-					}
-					mode = modeConnected
-				}
-
-				switch st.GameFlowPhase {
-				case types.GameFlowInProgress:
-					startPlaying(st.GameMode)
-				case types.GameFlowWatching:
-					startSpectating()
-				default:
-					stopLiveGame()
-				}
-
-			case d.lcu.LeagueProcessDetected():
-				if mode != modePlaceholder {
-					mode = modePlaceholder
-					placeholderStart = time.Now().Unix()
-					sendPlaceholder()
-					placeholderTicker = time.NewTicker(d.placeholderInterval)
-					placeholderC = placeholderTicker.C
-				}
-
-			default:
-				if mode != modeCleared {
-					stopPlaceholder()
-					d.updater.ClearPresence()
-					mode = modeCleared
-				}
-			}
-
-			// The live game poller only ever runs while mode == modeConnected
-			if mode != modeConnected {
-				stopLiveGame()
-			}
+			reconcile()
 		}
 	}
 }

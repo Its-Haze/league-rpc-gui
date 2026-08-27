@@ -10,7 +10,7 @@ import (
 func TestGUIService_SettingsRoundTrip(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 	store := config.NewStore(config.DefaultConfig())
-	svc := newGUIService(app.New(store))
+	svc := newGUIService(app.New(store, &fakePause{}))
 
 	if len(svc.GetPresets()) == 0 {
 		t.Fatal("GetPresets returned nothing")
@@ -33,7 +33,7 @@ func TestGUIService_SettingsRoundTrip(t *testing.T) {
 
 func TestGUIService_ApplyRejectsInvalid(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
-	svc := newGUIService(app.New(config.NewStore(config.DefaultConfig())))
+	svc := newGUIService(app.New(config.NewStore(config.DefaultConfig()), &fakePause{}))
 
 	cfg := svc.GetSettings()
 	cfg.DiscordAppID = ""

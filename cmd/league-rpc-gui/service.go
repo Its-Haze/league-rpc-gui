@@ -15,6 +15,9 @@ const configChangedEvent = "settings:changed"
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
+	// pauseHook, when set, handles pause changes so the tray checkbox stays
+	// in sync. Nil until the tray is wired; falls back to app then.
+	pauseHook func(bool)
 }
 
 func newGUIService(a *app.App) *guiService {
@@ -35,6 +38,20 @@ func (s *guiService) ApplySettings(cfg config.Config) error {
 // GetPresets returns the named Discord Application ID choices.
 func (s *guiService) GetPresets() map[string]string {
 	return s.app.GetPresets()
+}
+
+// SetPaused toggles the runtime pause flag from the frontend.
+func (s *guiService) SetPaused(paused bool) {
+	if s.pauseHook != nil {
+		s.pauseHook(paused)
+		return
+	}
+	s.app.SetPaused(paused)
+}
+
+// IsPaused reports the runtime pause flag to the frontend.
+func (s *guiService) IsPaused() bool {
+	return s.app.IsPaused()
 }
 
 // publishConfigChanges forwards every config.Store update to the frontend as

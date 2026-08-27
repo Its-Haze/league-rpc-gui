@@ -444,6 +444,59 @@ func TestDaemon_LogsOnceWhileWaitingForDiscordThenAgainOnNextEdge(t *testing.T) 
 	waitFor(t, testTimeout, func() bool { return writer.n.Load() >= 2 })
 }
 
+func TestDaemon_PauseFlagDefaultsUnpaused(t *testing.T) {
+	updater, stateMgr, _ := newTestDaemonDeps()
+	d := New(&fakeRunner{}, &fakeLCURunner{}, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
+
+	if d.IsPaused() {
+		t.Fatal("a fresh Daemon must start unpaused")
+	}
+}
+
+func TestDaemon_PauseClearsPresenceAndUnpauseResumes(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	discordRunner.connected.Store(true)
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, sender := newTestDaemonDeps()
+	d := New(discordRunner, lcuRunner, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+
+	lcuRunner.connected.Store(true)
+	waitFor(t, testTimeout, func() bool {
+		last := sender.lastSend()
+		return last != nil && last.State == "In Client"
+	})
+
+	// Pausing must clear presence at once, on the League-not-running path.
+	before := sender.clearCount()
+	d.SetPaused(true)
+	waitFor(t, testTimeout, func() bool { return sender.clearCount() > before })
+
+	if !d.IsPaused() {
+		t.Fatal("IsPaused should report true after SetPaused(true)")
+	}
+
+	// A state change while paused must not push presence.
+	sendsWhilePaused := sender.sendCount()
+	st := state.NewState()
+	st.GameFlowPhase = types.GameFlowLobby
+	st.Players = 2
+	st.MaxPlayers = 5
+	stateMgr.Update(st)
+	time.Sleep(10 * testPollInterval)
+	if sender.sendCount() != sendsWhilePaused {
+		t.Fatalf("presence sent while paused: before=%d after=%d", sendsWhilePaused, sender.sendCount())
+	}
+
+	// Unpausing resumes normal presence.
+	resumeBefore := sender.sendCount()
+	d.SetPaused(false)
+	waitFor(t, testTimeout, func() bool { return sender.sendCount() > resumeBefore })
+}
+
 func TestDaemon_NoPlaceholderWhenLeagueProcessNotDetected(t *testing.T) {
 	discordRunner := &fakeRunner{}
 	lcuRunner := &fakeLCURunner{}
