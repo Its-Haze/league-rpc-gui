@@ -15,6 +15,10 @@ type Manager struct {
 
 	// Channel for state change notifications
 	updates chan *State
+
+	// Fan-out channels handed to Subscribe callers. Each gets its own copy of
+	// every change; a slow reader only ever misses intermediate states.
+	subs []chan *State
 }
 
 // NewManager creates a new state manager
@@ -50,13 +54,7 @@ func (m *Manager) Update(newState *State) {
 		Msg("State updated")
 
 	m.current = newState.Copy()
-
-	// Notify listeners (non-blocking)
-	select {
-	case m.updates <- m.current.Copy():
-	default:
-		m.logger.Warn().Msg("State update channel full, dropping update")
-	}
+	m.broadcast()
 }
 
 // UpdateField updates a specific field and notifies if changed
@@ -74,13 +72,7 @@ func (m *Manager) UpdateField(updateFunc func(*State)) {
 	}
 
 	m.current = newState
-
-	// Notify listeners (non-blocking)
-	select {
-	case m.updates <- m.current.Copy():
-	default:
-		m.logger.Warn().Msg("State update channel full, dropping update")
-	}
+	m.broadcast()
 }
 
 // Updates returns the channel for receiving state updates
@@ -88,9 +80,47 @@ func (m *Manager) Updates() <-chan *State {
 	return m.updates
 }
 
-// Close closes the state manager and its update channel
+// Subscribe returns a fresh channel that receives a copy of the state on every
+// change, independent of Updates() and of any other subscriber.
+func (m *Manager) Subscribe() <-chan *State {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ch := make(chan *State, 1)
+	m.subs = append(m.subs, ch)
+	return ch
+}
+
+// broadcast pushes the current state to the shared Updates() channel and to
+// every Subscribe() channel. Callers must hold m.mu.
+func (m *Manager) broadcast() {
+	select {
+	case m.updates <- m.current.Copy():
+	default:
+		m.logger.Warn().Msg("State update channel full, dropping update")
+	}
+	for _, ch := range m.subs {
+		// Coalesce: drop a stale pending value, then push the latest. Both
+		// sends are non-blocking so a slow subscriber never stalls a writer.
+		select {
+		case <-ch:
+		default:
+		}
+		select {
+		case ch <- m.current.Copy():
+		default:
+		}
+	}
+}
+
+// Close closes the state manager and its update channels
 func (m *Manager) Close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	close(m.updates)
+	for _, ch := range m.subs {
+		close(ch)
+	}
+	m.subs = nil
 }
 
 // Specific update methods for common operations
@@ -218,12 +248,7 @@ func (m *Manager) UpdateApplicationStartTime(start int64) {
 		return
 	}
 	m.current.ApplicationStartTime = start
-
-	select {
-	case m.updates <- m.current.Copy():
-	default:
-		m.logger.Warn().Msg("State update channel full, dropping update")
-	}
+	m.broadcast()
 }
 
 // ClearInGameData resets last match's champion/skin/chroma, start time, and

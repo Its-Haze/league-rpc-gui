@@ -48,7 +48,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	daemonDone := make(chan struct{})
 
-	svc := newGUIService(app.New(store, d))
+	guiApp := app.New(store, d, app.WithStatus(d, d, d.SubscribeState(), d))
+	svc := newGUIService(guiApp)
 
 	// Assigned once the window exists; the single-instance callback reads it.
 	var mainWindow *application.WebviewWindow
@@ -83,6 +84,13 @@ func main() {
 	// Bridge config.Store changes to a frontend event so screens can react
 	// without polling. Runs until the app shuts down.
 	go svc.publishConfigChanges(ctx, wailsApp)
+
+	// Push status snapshots to the frontend on change, and drive the bridge
+	// that assembles them. Both run until the app shuts down.
+	guiApp.OnStatusChange(func(s app.StatusSnapshot) {
+		wailsApp.Event.Emit(statusChangedEvent, s)
+	})
+	go guiApp.RunStatus(ctx)
 
 	// Apply a start-with-Windows toggle to the registry the moment it changes,
 	// not just on the next launch.

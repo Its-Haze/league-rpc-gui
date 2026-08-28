@@ -83,6 +83,15 @@ type Updater struct {
 	heartbeating bool
 	// lastSentDetails is the Details string of the last payload actually
 	lastSentDetails string
+	// lastSent mirrors what Discord currently shows: the last payload sent, or
+	// a cleared marker. The GUI preview reads this, never a recomputation.
+	lastSent LastSent
+}
+
+// LastSent is the presence the Updater most recently pushed to Discord.
+type LastSent struct {
+	Data    *RPCData `json:"data"`
+	Cleared bool     `json:"cleared"`
 }
 
 // NewUpdater creates a new RPC updater
@@ -156,7 +165,23 @@ func (u *Updater) heartbeat() {
 		return
 	}
 	u.lastSentDetails = resend.Details
+	// Record the canonical payload, not resend: its Details may carry a
+	// zero-width space only there to force Discord to accept the resend.
+	u.recordSent(u.previousRPCData)
 }
+
+// LastSent returns what Discord currently shows: the last payload the Updater
+// transmitted, or a cleared marker. Safe for concurrent reads.
+func (u *Updater) LastSent() LastSent {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return LastSent{Data: u.lastSent.Data.Copy(), Cleared: u.lastSent.Cleared}
+}
+
+// recordSent / recordCleared are the single places lastSent is written, so a
+// new send path can't forget to. Callers must hold u.mu.
+func (u *Updater) recordSent(rpc *RPCData) { u.lastSent = LastSent{Data: rpc.Copy()} }
+func (u *Updater) recordCleared()          { u.lastSent = LastSent{Cleared: true} }
 
 // startReclaimBurst marks the current presence as worth defending and resets
 // the ticker to the faster reclaim cadence. Callers must hold u.mu.
@@ -233,6 +258,7 @@ func (u *Updater) executeUpdate(st *state.State) {
 		}
 		u.previousRPCData = nil
 		u.stopHeartbeat()
+		u.recordCleared()
 		return
 	}
 
@@ -256,6 +282,7 @@ func (u *Updater) executeUpdate(st *state.State) {
 	// Store as previous RPC data
 	u.previousRPCData = rpcData.Copy()
 	u.lastSentDetails = rpcData.Details
+	u.recordSent(rpcData)
 	u.startReclaimBurst()
 }
 
@@ -285,6 +312,7 @@ func (u *Updater) ImmediateUpdate(st *state.State) {
 		u.previousRPCData = nil
 		u.previousState = st.Copy()
 		u.stopHeartbeat()
+		u.recordCleared()
 		return
 	}
 
@@ -303,6 +331,7 @@ func (u *Updater) ImmediateUpdate(st *state.State) {
 	u.previousState = st.Copy()
 	u.previousRPCData = rpcData.Copy()
 	u.lastSentDetails = rpcData.Details
+	u.recordSent(rpcData)
 	u.startReclaimBurst()
 }
 
@@ -325,7 +354,31 @@ func (u *Updater) UpdatePlaceholder(rpcData *RPCData) {
 	// Clear previousState so the first real state isn't skipped as "unchanged".
 	u.previousState = nil
 	u.previousRPCData = rpcData.Copy()
+	u.recordSent(rpcData)
 	u.stopHeartbeat()
+}
+
+// PushSample transmits rpc as-is, bypassing the state mapper, and defends it
+// with the heartbeat like a real presence. It backs App.TestPresence.
+func (u *Updater) PushSample(rpc *RPCData) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.timer != nil {
+		u.timer.Stop()
+		u.timer = nil
+	}
+
+	if err := u.client.UpdatePresence(rpc); err != nil {
+		u.logger.Warn().Err(err).Msg("Failed to send test presence")
+		return
+	}
+
+	u.previousState = nil
+	u.previousRPCData = rpc.Copy()
+	u.lastSentDetails = rpc.Details
+	u.recordSent(rpc)
+	u.startReclaimBurst()
 }
 
 // ClearPresence clears the Discord presence
@@ -345,5 +398,6 @@ func (u *Updater) ClearPresence() {
 
 	u.previousRPCData = nil
 	u.previousState = nil
+	u.recordCleared()
 	u.stopHeartbeat()
 }

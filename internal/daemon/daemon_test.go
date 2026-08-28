@@ -497,6 +497,115 @@ func TestDaemon_PauseClearsPresenceAndUnpauseResumes(t *testing.T) {
 	waitFor(t, testTimeout, func() bool { return sender.sendCount() > resumeBefore })
 }
 
+func TestDaemon_TestPresenceShowsSampleThenReverts(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	discordRunner.connected.Store(true)
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, sender := newTestDaemonDeps()
+	d := New(discordRunner, lcuRunner, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
+	d.testDuration = 60 * time.Millisecond
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+
+	lcuRunner.connected.Store(true)
+	waitFor(t, testTimeout, func() bool {
+		last := sender.lastSend()
+		return last != nil && last.State == "In Client"
+	})
+
+	d.TestPresence()
+	waitFor(t, testTimeout, func() bool {
+		last := sender.lastSend()
+		return last != nil && last.Details == "Test presence"
+	})
+
+	// A live state change during the window must not replace the sample.
+	lobby := state.NewState()
+	lobby.GameFlowPhase = types.GameFlowLobby
+	lobby.Players = 3
+	lobby.MaxPlayers = 5
+	stateMgr.Update(lobby)
+	time.Sleep(10 * testPollInterval)
+	if last := sender.lastSend(); last == nil || last.Details != "Test presence" {
+		t.Fatalf("sample replaced mid-window: %+v", last)
+	}
+
+	// Once the window closes the daemon re-sends live presence from scratch.
+	waitFor(t, testTimeout, func() bool {
+		last := sender.lastSend()
+		return last != nil && last.Details != "Test presence"
+	})
+	if d.testActive.Load() {
+		t.Fatal("testActive still set after the window elapsed")
+	}
+}
+
+func TestDaemon_TestPresenceSecondCallDuringWindowIsNoop(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	discordRunner.connected.Store(true)
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, sender := newTestDaemonDeps()
+	d := New(discordRunner, lcuRunner, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
+	d.testDuration = time.Second
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+
+	lcuRunner.connected.Store(true)
+	waitFor(t, testTimeout, func() bool { return sender.sendCount() > 0 })
+
+	d.TestPresence()
+	waitFor(t, testTimeout, func() bool {
+		last := sender.lastSend()
+		return last != nil && last.Details == "Test presence"
+	})
+	afterFirst := sender.sendCount()
+
+	d.TestPresence()
+	d.TestPresence()
+	time.Sleep(20 * testPollInterval)
+
+	if got := sender.sendCount(); got != afterFirst {
+		t.Fatalf("ignored TestPresence calls still pushed presence: %d -> %d", afterFirst, got)
+	}
+}
+
+func TestDaemon_TestPresenceIsNoopWhilePaused(t *testing.T) {
+	discordRunner := &fakeRunner{}
+	discordRunner.connected.Store(true)
+	lcuRunner := &fakeLCURunner{}
+	updater, stateMgr, sender := newTestDaemonDeps()
+	d := New(discordRunner, lcuRunner, updater, stateMgr, &fakeLiveGamePoller{}, zerolog.Nop(), testPollInterval, testPollInterval)
+	d.testDuration = time.Second
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go d.Run(ctx)
+
+	lcuRunner.connected.Store(true)
+	waitFor(t, testTimeout, func() bool { return sender.sendCount() > 0 })
+
+	d.SetPaused(true)
+	waitFor(t, testTimeout, func() bool { return sender.clearCount() > 0 })
+
+	before := sender.sendCount()
+	d.TestPresence()
+	time.Sleep(20 * testPollInterval)
+
+	if d.testActive.Load() {
+		t.Fatal("TestPresence opened a window while paused")
+	}
+	if last := sender.lastSend(); last != nil && last.Details == "Test presence" {
+		t.Fatal("TestPresence pushed a sample while paused")
+	}
+	if got := sender.sendCount(); got != before {
+		t.Fatalf("TestPresence sent presence while paused: %d -> %d", before, got)
+	}
+}
+
 func TestDaemon_NoPlaceholderWhenLeagueProcessNotDetected(t *testing.T) {
 	discordRunner := &fakeRunner{}
 	lcuRunner := &fakeLCURunner{}

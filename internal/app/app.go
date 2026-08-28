@@ -3,11 +3,13 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
 	"github.com/its-haze/league-rpc/internal/config"
 	"github.com/its-haze/league-rpc/internal/presence/template"
+	"github.com/its-haze/league-rpc/internal/state"
 )
 
 // Pauser is the runtime pause control the daemon exposes. Kept as a local
@@ -22,11 +24,66 @@ type Pauser interface {
 type App struct {
 	store  *config.Store
 	pauser Pauser
+
+	status *statusBridge
+	tester TestPresenter
+}
+
+// Option configures optional App wiring the settings surface does not need.
+type Option func(*App)
+
+// WithStatus wires the status bridge (conns, probe, and state changes on
+func WithStatus(conns Connections, probe PresenceProbe, states <-chan *state.State, tester TestPresenter) Option {
+	return func(a *App) {
+		a.status = newStatusBridge(conns, probe, a.pauser, states)
+		a.tester = tester
+	}
 }
 
 // New builds an App over store and the daemon's pause control.
-func New(store *config.Store, pauser Pauser) *App {
-	return &App{store: store, pauser: pauser}
+func New(store *config.Store, pauser Pauser, opts ...Option) *App {
+	a := &App{store: store, pauser: pauser}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
+}
+
+// GetStatus returns the current status snapshot. Zero value until WithStatus
+// is wired.
+func (a *App) GetStatus() StatusSnapshot {
+	if a.status == nil {
+		return StatusSnapshot{}
+	}
+	return a.status.snapshot()
+}
+
+// OnStatusChange registers the callback fired whenever the status snapshot
+// changes. The GUI adapter forwards it to a frontend event.
+func (a *App) OnStatusChange(fn func(StatusSnapshot)) {
+	if a.status == nil {
+		return
+	}
+	a.status.setOnChange(fn)
+}
+
+// RunStatus drives the status bridge until ctx is canceled. Without WithStatus
+// it just blocks until then. The GUI adapter runs this in a goroutine.
+func (a *App) RunStatus(ctx context.Context) {
+	if a.status == nil {
+		<-ctx.Done()
+		return
+	}
+	a.status.run(ctx)
+}
+
+// TestPresence shows a fixed sample presence in Discord for a few seconds so
+// the user can confirm their settings without launching League.
+func (a *App) TestPresence() {
+	if a.tester == nil {
+		return
+	}
+	a.tester.TestPresence()
 }
 
 // GetSettings returns the current settings as a value copy for the frontend.

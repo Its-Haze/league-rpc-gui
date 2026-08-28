@@ -12,6 +12,10 @@ import (
 // changes, carrying the new settings so screens don't have to re-fetch.
 const configChangedEvent = "settings:changed"
 
+// statusChangedEvent carries a StatusSnapshot to the frontend whenever the
+// connection state, phase, or last-sent presence changes.
+const statusChangedEvent = "status:changed"
+
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
@@ -44,6 +48,16 @@ func (s *guiService) GetPresets() map[string]string {
 // data so the settings screen can preview an edit before it is saved.
 func (s *guiService) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample map[string]string) (app.TemplatePreview, error) {
 	return s.app.RenderTemplatePreview(ctx, tmpl, sample)
+}
+
+// GetStatus returns the current status snapshot for the frontend.
+func (s *guiService) GetStatus() app.StatusSnapshot {
+	return s.app.GetStatus()
+}
+
+// TestPresence shows a fixed sample presence in Discord for a few seconds.
+func (s *guiService) TestPresence() {
+	s.app.TestPresence()
 }
 
 // SetPaused toggles the runtime pause flag from the frontend.

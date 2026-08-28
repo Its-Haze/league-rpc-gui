@@ -2,6 +2,7 @@ package state
 
 import (
 	"testing"
+	"time"
 
 	"github.com/its-haze/league-rpc/pkg/types"
 	"github.com/rs/zerolog"
@@ -135,6 +136,54 @@ func TestManager_UpdateSpectatedGame_SetsModeAndMap(t *testing.T) {
 	m.UpdateSpectatedGame("", 0)
 	if got := m.Get(); got.GameMode != types.GameModeARAM || got.MapID != types.MapID(12) {
 		t.Errorf("empty UpdateSpectatedGame() overwrote known values: %+v", got)
+	}
+}
+
+func TestManager_Subscribe_DeliversToEachSubscriberAndUpdates(t *testing.T) {
+	m := NewManager(zerolog.Nop())
+	subA := m.Subscribe()
+	subB := m.Subscribe()
+
+	m.UpdateGameFlowPhase(string(types.GameFlowLobby))
+
+	for name, ch := range map[string]<-chan *State{"A": subA, "B": subB} {
+		select {
+		case st := <-ch:
+			if st.GameFlowPhase != types.GameFlowLobby {
+				t.Errorf("subscriber %s got phase %q, want Lobby", name, st.GameFlowPhase)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("subscriber %s received nothing", name)
+		}
+	}
+
+	// The legacy Updates() channel still fires for the same change.
+	select {
+	case st := <-m.Updates():
+		if st.GameFlowPhase != types.GameFlowLobby {
+			t.Errorf("Updates() got phase %q, want Lobby", st.GameFlowPhase)
+		}
+	default:
+		t.Error("Updates() channel did not receive the change")
+	}
+}
+
+func TestManager_Subscribe_CoalescesForASlowSubscriber(t *testing.T) {
+	m := NewManager(zerolog.Nop())
+	sub := m.Subscribe()
+
+	m.UpdateInGameStats(1, 0, 0, 10, 1, 100)
+	m.UpdateInGameStats(2, 0, 0, 20, 2, 200)
+	m.UpdateInGameStats(3, 0, 0, 30, 3, 300)
+
+	st := <-sub
+	if st.Kills != 3 {
+		t.Fatalf("expected the latest coalesced state (Kills=3), got Kills=%d", st.Kills)
+	}
+	select {
+	case extra := <-sub:
+		t.Fatalf("expected only the latest state buffered, also got Kills=%d", extra.Kills)
+	default:
 	}
 }
 
