@@ -97,3 +97,48 @@ func TestMapStateToPresence_HonorsPerModeRankOverride(t *testing.T) {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+func TestPerModeDisplayApplies(t *testing.T) {
+	tests := []struct {
+		phase types.GameFlowPhase
+		want  bool
+	}{
+		{types.GameFlowNone, false},
+		{types.GameFlowWaitingForStats, false},
+		{types.GameFlowPreEndOfGame, false},
+		{types.GameFlowEndOfGame, false},
+		{types.GameFlowLobby, true},
+		{types.GameFlowMatchmaking, true},
+		{types.GameFlowChampSelect, true},
+		{types.GameFlowInProgress, true},
+		{types.GameFlowWatching, true},
+	}
+	for _, tt := range tests {
+		if got := perModeDisplayApplies(tt.phase); got != tt.want {
+			t.Errorf("perModeDisplayApplies(%q) = %v, want %v", tt.phase, got, tt.want)
+		}
+	}
+}
+
+// A per-mode override for the last-played mode must not bleed into the
+// post-game card, which keeps GameMode from the finished match.
+func TestMapStateToPresence_PostGameIgnoresStaleModeOverride(t *testing.T) {
+	postGame := func() *state.State {
+		st := state.NewState()
+		st.GameFlowPhase = types.GameFlowEndOfGame
+		st.GameMode = types.GameModeARAM // left over from the match that just ended
+		return st
+	}
+
+	base := config.DefaultConfig()
+	withOverride := config.DefaultConfig()
+	withOverride.Display.Modes = map[string]config.ModeOverride{
+		string(types.GameModeARAM): {ShowRank: boolPtr(false), ShowStats: boolPtr(false)},
+	}
+
+	got := MapStateToPresence(postGame(), withOverride)
+	want := MapStateToPresence(postGame(), base)
+	if !got.Equals(want) {
+		t.Errorf("post-game presence changed by an ARAM override:\n got %+v\nwant %+v", *got, *want)
+	}
+}

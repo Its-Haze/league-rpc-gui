@@ -13,9 +13,9 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		return &RPCData{}
 	}
 
-	// Resolve per-mode display overrides once here; builders read the effective
-	// toggles off Display.Default, so hand them a config with those filled in.
-	if cfg != nil {
+	// Per-mode overrides only apply while a game or lobby for that mode is live.
+	// Idle and post-game keep a stale GameMode, so they use Display.Default.
+	if cfg != nil && perModeDisplayApplies(st.GameFlowPhase) {
 		cfg = withResolvedDisplay(st.GameMode, cfg)
 	}
 
@@ -64,6 +64,12 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		// Unknown phase - default to in client
 		return BuildInClientPresence(st, cfg)
 	}
+}
+
+// perModeDisplayApplies reports whether per-mode display overrides should be
+// resolved for phase. Idle and post-game carry a stale GameMode, so they don't.
+func perModeDisplayApplies(phase types.GameFlowPhase) bool {
+	return !phase.IsInClient()
 }
 
 // resolveDisplay returns the effective ShowRank/ShowStats for mode: its
