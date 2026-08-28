@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/its-haze/league-rpc/internal/config"
+	"github.com/its-haze/league-rpc/internal/presence/template"
 	"github.com/its-haze/league-rpc/internal/state"
 	"github.com/its-haze/league-rpc/pkg/constants"
 	"github.com/its-haze/league-rpc/pkg/types"
@@ -24,15 +25,18 @@ func queueDisplayName(st *state.State) string {
 
 // BuildInClientPresence builds RPC data for when the player is idle in the client
 func BuildInClientPresence(st *state.State, cfg *config.Config) *RPCData {
-	// Build details with emoji if enabled
-	details := string(st.Availability)
+	emoji := ""
 	if cfg.Presence.ShowEmojis {
-		emoji := "🟢"
+		emoji = "\U0001F7E2" // green circle
 		if st.Availability == types.AvailabilityAway {
-			emoji = "🔴"
+			emoji = "\U0001F534" // red circle
 		}
-		details = emoji + "  " + details
 	}
+
+	details, stateText := renderPresenceText(cfg, template.ContextInClient, map[string]string{
+		"emoji":        emoji,
+		"availability": string(st.Availability),
+	})
 
 	return &RPCData{
 		LargeImage: GetProfileIconURL(st.SummonerIcon),
@@ -40,7 +44,7 @@ func BuildInClientPresence(st *state.State, cfg *config.Config) *RPCData {
 		SmallImage: GetLeagueLogoURL(),
 		SmallText:  constants.SmallText,
 		Details:    details,
-		State:      "In Client",
+		State:      stateText,
 		Start:      st.ApplicationStartTime,
 	}
 }
@@ -172,7 +176,10 @@ func BuildInChampSelectPresence(st *state.State, cfg *config.Config) *RPCData {
 		smallImage = GetLeagueLogoURL()
 	}
 
-	details := queueDisplayName(st)
+	details, stateText := renderPresenceText(cfg, template.ContextChampSelect, map[string]string{
+		"queue": queueDisplayName(st),
+		"mode":  FormatGameModeName(st.GameMode),
+	})
 
 	return &RPCData{
 		LargeImage: largeImage,
@@ -180,7 +187,7 @@ func BuildInChampSelectPresence(st *state.State, cfg *config.Config) *RPCData {
 		SmallImage: smallImage,
 		SmallText:  smallText,
 		Details:    details,
-		State:      "In Champ Select",
+		State:      stateText,
 		Start:      time.Now().Unix(), // Start timer from now
 	}
 }
@@ -209,21 +216,27 @@ func BuildInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 		smallImage = GetLeagueLogoURL()
 	}
 
-	details := queueDisplayName(st)
-
-	// State: "In Game" plus the mode-specific stat line if enabled. Arena
-	// and Swarm show level and gold; everything else shows KDA and CS.
-	gameState := "In Game"
+	// Mode-specific stat line, empty when stats are hidden. Arena and Swarm
+	// show level and gold; everything else shows KDA and CS.
+	stats := ""
 	if cfg.Display.Default.ShowStats {
 		switch st.GameMode {
 		case types.GameModeArena:
-			gameState = "In Game · " + FormatArenaStats(st.Kills, st.Deaths, st.Assists, st.Level, st.Gold)
+			stats = FormatArenaStats(st.Kills, st.Deaths, st.Assists, st.Level, st.Gold)
 		case types.GameModeSwarm:
-			gameState = "In Game · " + FormatSwarmStats(st.CreepScore, st.Level, st.Gold)
+			stats = FormatSwarmStats(st.CreepScore, st.Level, st.Gold)
 		default:
-			gameState = "In Game · " + FormatKDA(st.Kills, st.Deaths, st.Assists, st.CreepScore)
+			stats = FormatKDA(st.Kills, st.Deaths, st.Assists, st.CreepScore)
 		}
 	}
+
+	details, gameState := renderPresenceText(cfg, template.ContextInGame, map[string]string{
+		"queue":    queueDisplayName(st),
+		"mode":     FormatGameModeName(st.GameMode),
+		"stats":    stats,
+		"champion": st.ChampionName,
+		"skin":     FormatSkinName(st.ChampionName, st.SkinName, st.ChromaName),
+	})
 
 	// Loading screen: GameStartTime isn't resolved yet, so fall back to now.
 	start := st.GameStartTime
@@ -292,9 +305,12 @@ func BuildSpectatingPresence(st *state.State, cfg *config.Config) *RPCData {
 		start = time.Now().Unix()
 	}
 
-	// Discord rejects an empty details string; before the first spectate
-	// poll resolves the mode there may be nothing to show.
-	details := FormatGameModeName(st.GameMode)
+	details, stateText := renderPresenceText(cfg, template.ContextSpectating, map[string]string{
+		"mode":  FormatGameModeName(st.GameMode),
+		"queue": queueDisplayName(st),
+	})
+	// Discord rejects an empty details string; before the first spectate poll
+	// resolves the mode there may be nothing to show.
 	if details == "" {
 		details = "League of Legends"
 	}
@@ -305,7 +321,7 @@ func BuildSpectatingPresence(st *state.State, cfg *config.Config) *RPCData {
 		SmallImage: GetLeagueLogoURL(),
 		SmallText:  constants.SmallText,
 		Details:    details,
-		State:      "Spectating",
+		State:      stateText,
 		Start:      start,
 	}
 }

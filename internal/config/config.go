@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+
+	"github.com/its-haze/league-rpc/internal/presence/template"
 )
 
 // CurrentSchemaVersion is the version stamped on every config the app writes.
@@ -101,7 +103,7 @@ func DefaultConfig() *Config {
 			ShowEmojis:   true,
 			ShowInClient: true,
 			Idle:         "",
-			Templates:    map[string]TemplatePair{},
+			Templates:    defaultTemplates(),
 		},
 		Behavior: BehaviorConfig{
 			LaunchAtStartup:  false,
@@ -114,6 +116,17 @@ func DefaultConfig() *Config {
 			DebugMode:            false,
 		},
 	}
+}
+
+// defaultTemplates returns the built-in per-context presence templates. Every
+// entry renders to the string the app produced before templates were editable.
+func defaultTemplates() map[string]TemplatePair {
+	m := make(map[string]TemplatePair, len(template.Contexts()))
+	for _, ctx := range template.Contexts() {
+		d, s := template.Default(ctx)
+		m[string(ctx)] = TemplatePair{Details: d, State: s}
+	}
+	return m
 }
 
 // Bounds for the numeric settings. Shared by Validate and clamp so the
@@ -182,6 +195,13 @@ func (c *Config) clamp() {
 	}
 	if c.Presence.Templates == nil {
 		c.Presence.Templates = map[string]TemplatePair{}
+	}
+	// Backfill any context the file is missing so the GUI always has an entry
+	// to show and edit; never touch one the user already set.
+	for k, v := range defaultTemplates() {
+		if _, ok := c.Presence.Templates[k]; !ok {
+			c.Presence.Templates[k] = v
+		}
 	}
 }
 

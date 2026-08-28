@@ -3,7 +3,38 @@ package config
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/its-haze/league-rpc/internal/presence/template"
 )
+
+func TestDefaultConfig_ShipsEveryPresenceTemplate(t *testing.T) {
+	got := DefaultConfig().Presence.Templates
+	for _, ctx := range template.Contexts() {
+		pair, ok := got[string(ctx)]
+		if !ok {
+			t.Fatalf("no default template for context %q", ctx)
+		}
+		wantD, wantS := template.Default(ctx)
+		if pair.Details != wantD || pair.State != wantS {
+			t.Errorf("context %q = %+v, want {%q %q}", ctx, pair, wantD, wantS)
+		}
+	}
+}
+
+func TestClamp_BackfillsMissingTemplatesButKeepsUserEdits(t *testing.T) {
+	c := DefaultConfig()
+	c.Presence.Templates = map[string]TemplatePair{
+		"in-game": {Details: "custom {queue}", State: "custom"},
+	}
+	c.clamp()
+
+	if c.Presence.Templates["in-game"].Details != "custom {queue}" {
+		t.Error("clamp overwrote a user-set template")
+	}
+	if _, ok := c.Presence.Templates["spectating"]; !ok {
+		t.Error("clamp did not backfill a missing template")
+	}
+}
 
 func TestValidate_ReportsEveryProblemAtOnce(t *testing.T) {
 	c := DefaultConfig()

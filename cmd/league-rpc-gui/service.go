@@ -40,6 +40,12 @@ func (s *guiService) GetPresets() map[string]string {
 	return s.app.GetPresets()
 }
 
+// RenderTemplatePreview renders a presence template pair for ctx against sample
+// data so the settings screen can preview an edit before it is saved.
+func (s *guiService) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample map[string]string) (app.TemplatePreview, error) {
+	return s.app.RenderTemplatePreview(ctx, tmpl, sample)
+}
+
 // SetPaused toggles the runtime pause flag from the frontend.
 func (s *guiService) SetPaused(paused bool) {
 	if s.pauseHook != nil {
