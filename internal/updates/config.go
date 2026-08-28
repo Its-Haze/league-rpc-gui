@@ -19,13 +19,7 @@ const ChecksumAsset = "SHA256SUMS"
 // after the launch check.
 const CheckInterval = 6 * time.Hour
 
-// publicKeyPEM is the release-signature trust root, fixed at build time. It
-// is the ONLY authority for verifying a release's SHA256SUMS signature: the
-// matching private key lives outside this repo (see CLAUDE.local.md until
-// ticket 10 moves it into a GitHub Actions secret) and signs each tagged
-// release build. Rotating the key means shipping a build that trusts both
-// the old and new key before the old one is retired.
-//
+// publicKeyPEM is the release-signature trust root; see docs/release-signing.md.
 //go:embed keys/update-public.pem
 var publicKeyPEM []byte
 
@@ -40,9 +34,10 @@ func BuildConfig(currentVersion string) (wupdater.Config, error) {
 	if err != nil {
 		return wupdater.Config{}, err
 	}
+	signed := newSignedGithubProvider(provider, RepoSlug, NewProductionHTTPDoer())
 	return wupdater.Config{
 		CurrentVersion: currentVersion,
-		Providers:      []wupdater.Provider{provider},
+		Providers:      []wupdater.Provider{signed},
 		PublicKey:      publicKeyPEM,
 		Window:         wupdater.WindowNone,
 	}, nil

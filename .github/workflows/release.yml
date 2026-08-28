@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.25.0"
+  # Pinned to the version this project builds against (go.mod).
+  WAILS_VERSION: "v3.0.0-beta.15"
+  TASK_VERSION: "v3.53.1"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Task
+        run: go install github.com/go-task/task/v3/cmd/task@${{ env.TASK_VERSION }}
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Build
+        shell: bash
+        run: task build VERSION="$GITHUB_REF_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary
+          path: bin/league-rpc-gui.exe
+          if-no-files-found: error
+
+  # Isolated in its own job behind a protected environment so only this job's
+  # steps can ever see UPDATE_SIGNING_KEY; build and release never touch it.
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release-signing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary
+          path: bin
+
+      - name: Sign the release
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          go build -o bin/sign-release ./cmd/sign-release
+          ./bin/sign-release -artifact bin/league-rpc-gui.exe -sums-out SHA256SUMS -sig-out SHA256SUMS.sig
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: |
+            SHA256SUMS
+            SHA256SUMS.sig
+          if-no-files-found: error
+
+  release:
+    needs: [build, sign]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary
+          path: bin
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: checksums
+          path: .
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          prerelease_flag=""
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            bin/league-rpc-gui.exe SHA256SUMS SHA256SUMS.sig \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            $prerelease_flag
