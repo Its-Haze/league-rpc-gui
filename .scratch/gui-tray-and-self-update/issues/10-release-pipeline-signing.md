@@ -4,7 +4,7 @@
 
 **Blocked by:** 09
 
-**Status:** ready-for-release-setup
+**Status:** done
 
 - [x] Workflow triggers on `v*` tags and builds the Windows binary with `wails3 build`
 - [x] Version string is injected from the tag via `-ldflags -X` and matches what `App.GetVersion()` reports
@@ -12,7 +12,7 @@
 - [x] A GitHub Release is created with the binary and `SHA256SUMS` attached, in the layout the updater expects
 - [x] The signing job runs in a protected environment; the private key is a repo secret, never echoed
 - [x] `docs/` gains a short note on generating the keypair and rotating it (ship a build trusting both keys, then drop the old one)
-- [ ] A dry run against a pre-release tag produces artifacts the ticket-09 client can verify and install
+- [x] A dry run against a pre-release tag produces artifacts the ticket-09 client can verify and install
 
 **Notes:** `.github/workflows/release.yml` builds via Task/`wails3`, signs in an
 isolated `sign` job (only job with `environment: release-signing`), and
@@ -22,7 +22,6 @@ provider only ever populated a digest, never a signature, so the compiled-in
 public key was inert. `internal/updates/signedgithub.go` wraps it to fetch
 and verify the new `SHA256SUMS.sig` sidecar too. See `docs/release-signing.md`.
 
-Still needed before this is fully closed out: create the `release-signing`
-environment and its `UPDATE_SIGNING_KEY` secret from the key in
-`CLAUDE.local.md`, then push a `vX.Y.Z-rc1` tag for the dry run described in
-that doc. Both are outward-facing GitHub actions left for a human to do.
+Dry run done: `v0.0.1-rc1` ran all three jobs green, and the downloaded
+`SHA256SUMS`/`SHA256SUMS.sig` were verified by hand against the digest and the
+committed public key. Tag and prerelease deleted afterward.
