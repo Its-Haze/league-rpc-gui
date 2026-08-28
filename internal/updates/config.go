@@ -9,7 +9,7 @@ import (
 )
 
 // RepoSlug is the GitHub repository the App Update flow pulls releases from.
-const RepoSlug = "its-haze/league-rpc"
+const RepoSlug = "Its-Haze/league-rpc-gui"
 
 // ChecksumAsset is the sidecar every release publishes alongside the binary.
 // Its ed25519 signature is verified against publicKeyPEM before any swap.
