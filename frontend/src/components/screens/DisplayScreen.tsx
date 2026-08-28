@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GetGameModes } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import type { ModeOverride, TemplatePair } from "../../../bindings/github.com/its-haze/league-rpc/internal/config/models";
+import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
 import { withShowEmojis, withShowRank, withShowStats } from "../../lib/displayPatch";
 import { PRESENCE_CONTEXTS } from "../../lib/presenceContexts";
@@ -12,6 +13,7 @@ import { TemplateEditor } from "./display/TemplateEditor";
 // per-context presence template editors.
 export function DisplayScreen() {
   const { cfg, error, applyPatch } = useSettings();
+  const defaults = useDefaultConfig();
   const [modes, setModes] = useState<string[]>([]);
   const [modesOpen, setModesOpen] = useState(false);
 
@@ -47,7 +49,13 @@ export function DisplayScreen() {
       {error && <p className="text-danger text-sm">{error}</p>}
 
       <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field id="show-rank" label="Show rank" hint="Rank emblem and LP">
+        <Field
+          id="show-rank"
+          label="Show rank"
+          hint="Rank emblem and LP"
+          onReset={defaults ? () => void applyPatch(withShowRank(cfg, defaults.display.default.show_rank)) : undefined}
+          isDefault={!defaults || cfg.display.default.show_rank === defaults.display.default.show_rank}
+        >
           <Toggle
             id="show-rank"
             checked={cfg.display.default.show_rank}
@@ -55,7 +63,13 @@ export function DisplayScreen() {
             label="Show rank"
           />
         </Field>
-        <Field id="show-stats" label="Show stats" hint="KDA and creep score">
+        <Field
+          id="show-stats"
+          label="Show stats"
+          hint="KDA and creep score"
+          onReset={defaults ? () => void applyPatch(withShowStats(cfg, defaults.display.default.show_stats)) : undefined}
+          isDefault={!defaults || cfg.display.default.show_stats === defaults.display.default.show_stats}
+        >
           <Toggle
             id="show-stats"
             checked={cfg.display.default.show_stats}
@@ -63,7 +77,13 @@ export function DisplayScreen() {
             label="Show stats"
           />
         </Field>
-        <Field id="show-emojis" label="Show status emojis" hint="Online/away indicator">
+        <Field
+          id="show-emojis"
+          label="Show status emojis"
+          hint="Online/away indicator"
+          onReset={defaults ? () => void applyPatch(withShowEmojis(cfg, defaults.presence.show_emojis)) : undefined}
+          isDefault={!defaults || cfg.presence.show_emojis === defaults.presence.show_emojis}
+        >
           <Toggle
             id="show-emojis"
             checked={cfg.presence.show_emojis}
@@ -112,6 +132,8 @@ export function DisplayScreen() {
               onChange={(next) => setTemplate(ctx, next)}
               showRank={cfg.display.default.show_rank}
               showStats={cfg.display.default.show_stats}
+              showEmojis={cfg.presence.show_emojis}
+              defaultValue={defaults?.presence.templates?.[ctx]}
             />
           );
         })}

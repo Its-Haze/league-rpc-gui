@@ -40,6 +40,12 @@ func (s *guiService) GetSettings() config.Config {
 	return s.app.GetSettings()
 }
 
+// GetDefaultConfig returns the built-in default settings tree, for the "reset
+// to default" action next to each setting.
+func (s *guiService) GetDefaultConfig() config.Config {
+	return s.app.GetDefaultConfig()
+}
+
 // ApplySettings validates and persists cfg, swapping it in live. A returned
 // error means nothing changed and the message is meant for the user.
 func (s *guiService) ApplySettings(cfg config.Config) error {
@@ -62,10 +68,10 @@ func (s *guiService) RenderTemplatePreview(ctx string, tmpl config.TemplatePair,
 	return s.app.RenderTemplatePreview(ctx, tmpl, sample)
 }
 
-// GetDisplayPreview renders ctx's template with showStats honored, for the
-// Display screen's live preview of the current settings.
-func (s *guiService) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool) (app.TemplatePreview, error) {
-	return s.app.GetDisplayPreview(ctx, tmpl, showStats)
+// GetDisplayPreview renders ctx's template with showStats/showEmojis
+// honored, for the Display screen's live preview of the current settings.
+func (s *guiService) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool, showEmojis bool) (app.TemplatePreview, error) {
+	return s.app.GetDisplayPreview(ctx, tmpl, showStats, showEmojis)
 }
 
 // GetPreviewAssets returns sample image URLs for the Display screen's preview.

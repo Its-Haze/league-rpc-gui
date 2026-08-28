@@ -1,5 +1,7 @@
+import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useConfigBounds } from "../../hooks/useConfigBounds";
+import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useDiscordAppName } from "../../hooks/useDiscordAppName";
 import { usePresets } from "../../hooks/usePresets";
 import { useSettings } from "../../hooks/useSettings";
@@ -17,6 +19,7 @@ import { DebouncedTextField, Field, Select, Toggle } from "../ui";
 // intervals clamped to the config package's bounds, and debug logging.
 export function AdvancedScreen() {
   const { cfg, error, applyPatch } = useSettings();
+  const defaults = useDefaultConfig();
   const presets = usePresets();
   const bounds = useConfigBounds();
   // null means "not editing custom yet"; once the user types, even an empty
@@ -66,13 +69,25 @@ export function AdvancedScreen() {
     if (value.trim() !== "") void applyPatch({ discord_app_id: value.trim() });
   }
 
+  function handleAppIdReset() {
+    if (!defaults) return;
+    setCustomAppId(null);
+    if (defaults.discord_app_id !== cfg!.discord_app_id) void applyPatch({ discord_app_id: defaults.discord_app_id });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Advanced</h1>
       {error && <p className="text-danger text-sm">{error}</p>}
 
       <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field id="app-id-preset" label="Discord Application ID" hint="Which app's presence this shows as">
+        <Field
+          id="app-id-preset"
+          label="Discord Application ID"
+          hint="Which app's presence this shows as"
+          onReset={defaults ? handleAppIdReset : undefined}
+          isDefault={!defaults || cfg.discord_app_id === defaults.discord_app_id}
+        >
           <Select
             value={selectValue}
             onValueChange={handlePresetChange}
@@ -116,6 +131,7 @@ export function AdvancedScreen() {
           description="How quickly your status updates when your queue, rank, or game changes."
           bounds={bounds.updateInterval}
           value={cfg.advanced.update_interval}
+          defaultValue={defaults?.advanced.update_interval}
           onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, update_interval: v } })}
         />
         <IntervalSlider
@@ -124,9 +140,18 @@ export function AdvancedScreen() {
           description="How often your KDA and creep score refresh while you're in a game."
           bounds={bounds.statsPollingInterval}
           value={cfg.advanced.stats_polling_interval}
+          defaultValue={defaults?.advanced.stats_polling_interval}
           onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, stats_polling_interval: v } })}
         />
-        <Field id="debug-mode" label="Debug logging" hint="Takes effect immediately, no restart needed">
+        <Field
+          id="debug-mode"
+          label="Debug logging"
+          hint="Takes effect immediately, no restart needed"
+          onReset={
+            defaults ? () => void applyPatch({ advanced: { ...cfg.advanced, debug_mode: defaults.advanced.debug_mode } }) : undefined
+          }
+          isDefault={!defaults || cfg.advanced.debug_mode === defaults.advanced.debug_mode}
+        >
           <Toggle
             id="debug-mode"
             checked={cfg.advanced.debug_mode}
@@ -169,12 +194,15 @@ interface IntervalSliderProps {
   description: string;
   bounds: Bounds;
   value: number;
+  /** The built-in default in ms, for the reset button. Undefined while
+   * defaults haven't loaded yet, which just hides the button. */
+  defaultValue?: number;
   onCommit: (ms: number) => void;
 }
 
 // A plain-language slider for a millisecond interval: shows seconds instead
 // of raw milliseconds, and only persists once the drag or keypress ends.
-function IntervalSlider({ id, label, description, bounds, value, onCommit }: IntervalSliderProps) {
+function IntervalSlider({ id, label, description, bounds, value, defaultValue, onCommit }: IntervalSliderProps) {
   const [draft, setDraft] = useState(value);
 
   useEffect(() => setDraft(value), [value]);
@@ -183,13 +211,33 @@ function IntervalSlider({ id, label, description, bounds, value, onCommit }: Int
     if (draft !== value) onCommit(draft);
   }
 
+  function reset() {
+    if (defaultValue === undefined) return;
+    setDraft(defaultValue);
+    if (defaultValue !== value) onCommit(defaultValue);
+  }
+
+  const isDefault = defaultValue === undefined || draft === defaultValue;
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-4">
         <label htmlFor={id} className="text-sm">
           {label}
         </label>
-        <span className="text-accent text-sm font-medium">{formatIntervalSeconds(draft)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-accent text-sm font-medium">{formatIntervalSeconds(draft)}</span>
+          <button
+            type="button"
+            onClick={reset}
+            title="Reset to default"
+            aria-label={`Reset ${label} to default`}
+            disabled={isDefault}
+            className="text-muted hover:text-text shrink-0 rounded-sm p-1 disabled:pointer-events-none disabled:opacity-0"
+          >
+            <RotateCcw className="size-3.5" />
+          </button>
+        </div>
       </div>
       <p className="text-muted text-xs">{description}</p>
       <input

@@ -222,7 +222,7 @@ func TestApp_RenderTemplatePreview_EmptyMapUsesSampleData(t *testing.T) {
 func TestApp_GetDisplayPreview_ShowsStatsWhenEnabled(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
 
-	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, true)
+	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, true, true)
 	if err != nil {
 		t.Fatalf("GetDisplayPreview: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestApp_GetDisplayPreview_ShowsStatsWhenEnabled(t *testing.T) {
 func TestApp_GetDisplayPreview_HidesStatsWhenDisabled(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
 
-	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, false)
+	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, false, true)
 	if err != nil {
 		t.Fatalf("GetDisplayPreview: %v", err)
 	}
@@ -243,9 +243,21 @@ func TestApp_GetDisplayPreview_HidesStatsWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestApp_GetDisplayPreview_HidesEmojiWhenDisabled(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	got, err := a.GetDisplayPreview("in-client", config.TemplatePair{}, true, false)
+	if err != nil {
+		t.Fatalf("GetDisplayPreview: %v", err)
+	}
+	if strings.Contains(got.Details, "\U0001F7E2") {
+		t.Fatalf("Details = %q, emoji should be hidden", got.Details)
+	}
+}
+
 func TestApp_GetDisplayPreview_RejectsUnknownContext(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
-	if _, err := a.GetDisplayPreview("bogus", config.TemplatePair{}, true); err == nil {
+	if _, err := a.GetDisplayPreview("bogus", config.TemplatePair{}, true, true); err == nil {
 		t.Fatal("accepted an unknown presence context")
 	}
 }
@@ -283,6 +295,15 @@ func TestApp_GetConfigBounds_MatchesConfigPackage(t *testing.T) {
 	}
 	if got := a.GetConfigBounds(); got != want {
 		t.Errorf("GetConfigBounds() = %+v, want %+v", got, want)
+	}
+}
+
+func TestApp_GetDefaultConfig_MatchesConfigDefault(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+	got := a.GetDefaultConfig()
+	want := *config.DefaultConfig()
+	if got.DiscordAppID != want.DiscordAppID || got.Display.Default != want.Display.Default {
+		t.Fatalf("GetDefaultConfig() = %+v, want %+v", got, want)
 	}
 }
 

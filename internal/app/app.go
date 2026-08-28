@@ -205,6 +205,12 @@ func (a *App) GetSettings() config.Config {
 	return *a.store.Load()
 }
 
+// GetDefaultConfig returns the built-in default settings tree, so the GUI can
+// offer a "reset to default" action next to each setting.
+func (a *App) GetDefaultConfig() config.Config {
+	return *config.DefaultConfig()
+}
+
 // ApplySettings validates cfg, persists it, and swaps it in live. A returned
 // error means nothing changed and the message is meant for the user.
 func (a *App) ApplySettings(cfg config.Config) error {
@@ -289,7 +295,7 @@ func (a *App) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample
 }
 
 // GetDisplayPreview renders ctx's template against sample data with the
-func (a *App) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool) (TemplatePreview, error) {
+func (a *App) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool, showEmojis bool) (TemplatePreview, error) {
 	tctx := template.Context(ctx)
 	if !template.IsContext(tctx) {
 		return TemplatePreview{}, fmt.Errorf("unknown presence context %q", ctx)
@@ -297,6 +303,9 @@ func (a *App) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats 
 	sample := template.SampleData(tctx)
 	if !showStats {
 		sample["stats"] = ""
+	}
+	if !showEmojis {
+		sample["emoji"] = ""
 	}
 	return renderTemplatePair(tctx, tmpl, sample), nil
 }

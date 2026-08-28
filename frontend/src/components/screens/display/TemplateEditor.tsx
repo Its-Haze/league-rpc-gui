@@ -18,15 +18,19 @@ export interface TemplateEditorProps {
   ctx: PresenceContext;
   value: TemplatePair;
   onChange: (next: TemplatePair) => void;
-  /** Current Display.Default toggles, so the preview honors them the same
-   * way a real send would (stats line, rank emblem vs. the League logo). */
+  /** Current Display.Default/Presence toggles, so the preview honors them the
+   * same way a real send would (stats line, emoji, rank emblem vs. the League logo). */
   showRank: boolean;
   showStats: boolean;
+  showEmojis: boolean;
+  /** The built-in details/state pair for ctx, for the per-line reset button.
+   * Undefined while defaults haven't loaded yet, which just hides the button. */
+  defaultValue?: TemplatePair;
 }
 
 // One presence context's editor: details/state text fields, a live preview
 // rendered through the real template engine, and a token reference.
-export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: TemplateEditorProps) {
+export function TemplateEditor({ ctx, value, onChange, showRank, showStats, showEmojis, defaultValue }: TemplateEditorProps) {
   const [tokens, setTokens] = useState<string[]>([]);
   const [preview, setPreview] = useState<{ details: string; state: string; warnings: string[] }>({
     details: "",
@@ -38,7 +42,14 @@ export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: Te
   // Local draft so typing feels instant; onChange (which persists to the
   // daemon) only fires once the draft settles, via the debounce below.
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  // Tracks the last pair *we* committed, so the round-tripped echo of our
+  // own write doesn't clobber whatever the user has typed since.
+  const lastSent = useRef(value);
+  useEffect(() => {
+    if (value.details !== lastSent.current.details || value.state !== lastSent.current.state) {
+      setDraft(value);
+    }
+  }, [value]);
   const debouncedDraft = useDebouncedValue(draft, COMMIT_DELAY_MS);
   const mounted = useRef(false);
 
@@ -52,11 +63,12 @@ export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: Te
     if (!mounted.current) {
       mounted.current = true;
     } else {
+      lastSent.current = debouncedDraft;
       onChange(debouncedDraft);
     }
 
     let cancelled = false;
-    GetDisplayPreview(ctx, debouncedDraft, showStats)
+    GetDisplayPreview(ctx, debouncedDraft, showStats, showEmojis)
       .then((p) => {
         if (!cancelled) setPreview({ details: p.details, state: p.state, warnings: p.warnings ?? [] });
       })
@@ -65,7 +77,7 @@ export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: Te
       cancelled = true;
     };
     // onChange is expected to be stable enough per render; only ctx, the
-  }, [ctx, debouncedDraft, showStats]);
+  }, [ctx, debouncedDraft, showStats, showEmojis]);
 
   // Sample images only make sense for the in-game context: it's the only
   // one whose sample data includes a champion/skin to illustrate.
@@ -82,7 +94,12 @@ export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: Te
         </span>
       </div>
 
-      <Field id={`${ctx}-details`} label="Details line">
+      <Field
+        id={`${ctx}-details`}
+        label="Details line"
+        onReset={defaultValue ? () => setDraft({ ...draft, details: defaultValue.details }) : undefined}
+        isDefault={!defaultValue || draft.details === defaultValue.details}
+      >
         <input
           id={`${ctx}-details`}
           value={draft.details}
@@ -91,7 +108,12 @@ export function TemplateEditor({ ctx, value, onChange, showRank, showStats }: Te
           className="border-border bg-surface-raised text-text w-64 rounded-sm border px-3 py-1.5 text-sm"
         />
       </Field>
-      <Field id={`${ctx}-state`} label="State line">
+      <Field
+        id={`${ctx}-state`}
+        label="State line"
+        onReset={defaultValue ? () => setDraft({ ...draft, state: defaultValue.state }) : undefined}
+        isDefault={!defaultValue || draft.state === defaultValue.state}
+      >
         <input
           id={`${ctx}-state`}
           value={draft.state}

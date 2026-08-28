@@ -1,4 +1,5 @@
 import { useCheckForUpdates } from "../../hooks/useCheckForUpdates";
+import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
 import { withIdleText, withLaunchAtStartup, withShowInClient } from "../../lib/behaviorPatch";
 import { DebouncedTextField, Field, Toggle } from "../ui";
@@ -7,6 +8,7 @@ import { DebouncedTextField, Field, Toggle } from "../ui";
 // and idle presence, and the update-check controls.
 export function BehaviorScreen() {
   const { cfg, error, applyPatch } = useSettings();
+  const defaults = useDefaultConfig();
   const { checking, result: checkResult, check: handleCheck } = useCheckForUpdates();
 
   if (!cfg) {
@@ -19,7 +21,13 @@ export function BehaviorScreen() {
       {error && <p className="text-danger text-sm">{error}</p>}
 
       <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field id="launch-at-startup" label="Start with Windows" hint="Launches hidden to the tray at logon">
+        <Field
+          id="launch-at-startup"
+          label="Start with Windows"
+          hint="Launches hidden to the tray at logon"
+          onReset={defaults ? () => void applyPatch(withLaunchAtStartup(cfg, defaults.behavior.launch_at_startup)) : undefined}
+          isDefault={!defaults || cfg.behavior.launch_at_startup === defaults.behavior.launch_at_startup}
+        >
           <Toggle
             id="launch-at-startup"
             checked={cfg.behavior.launch_at_startup}
@@ -34,7 +42,13 @@ export function BehaviorScreen() {
       </section>
 
       <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field id="show-in-client" label="Show presence while in client" hint="Idle in the League client, not in a game">
+        <Field
+          id="show-in-client"
+          label="Show presence while in client"
+          hint="Idle in the League client, not in a game"
+          onReset={defaults ? () => void applyPatch(withShowInClient(cfg, defaults.presence.show_in_client)) : undefined}
+          isDefault={!defaults || cfg.presence.show_in_client === defaults.presence.show_in_client}
+        >
           <Toggle
             id="show-in-client"
             checked={cfg.presence.show_in_client}
@@ -42,7 +56,13 @@ export function BehaviorScreen() {
             label="Show presence while in client"
           />
         </Field>
-        <Field id="idle-text" label="Idle status text" hint="Empty uses the built-in text">
+        <Field
+          id="idle-text"
+          label="Idle status text"
+          hint="Empty uses the built-in text"
+          onReset={defaults ? () => void applyPatch(withIdleText(cfg, defaults.presence.idle)) : undefined}
+          isDefault={!defaults || cfg.presence.idle === defaults.presence.idle}
+        >
           <DebouncedTextField
             id="idle-text"
             value={cfg.presence.idle}
