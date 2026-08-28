@@ -4,14 +4,18 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Updater service configured: GitHub Releases provider, embedded ed25519 public key, stable channel only
-- [ ] Launch check plus a ~6h periodic check; results surface through a binding/event
-- [ ] Dismissible in-GUI banner appears only when a newer version exists
-- [ ] Update flow: download on click, verify signature against `SHA256SUMS`, swap, prompt to restart
-- [ ] No download traffic before the user clicks Update
-- [ ] Manual "Check for updates" binding
-- [ ] Changelog: fetch latest release body via the GitHub API, render markdown, degrade to "changelog unavailable" offline
-- [ ] `App.GetVersion()` returns the `-ldflags`-injected version; a dev build reports a clear placeholder
-- [ ] Tests: version-compare logic, "no update" and "update available" states, offline changelog fallback
+- [x] Updater service configured: GitHub Releases provider, embedded ed25519 public key, stable channel only
+- [x] Launch check plus a ~6h periodic check; results surface through a binding/event
+- [x] Dismissible in-GUI banner appears only when a newer version exists
+- [x] Update flow: download on click, verify signature against `SHA256SUMS`, swap, prompt to restart
+- [x] No download traffic before the user clicks Update
+- [x] Manual "Check for updates" binding
+- [x] Changelog: fetch latest release body via the GitHub API, render markdown, degrade to "changelog unavailable" offline
+- [x] `App.GetVersion()` returns the `-ldflags`-injected version; a dev build reports a clear placeholder
+- [x] Tests: version-compare logic, "no update" and "update available" states, offline changelog fallback
+
+**Notes:** The ed25519 keypair was generated locally; the public half is committed at
+`internal/updates/keys/update-public.pem` and the private half is recorded in
+`CLAUDE.local.md` pending ticket 10 moving it into a GitHub Actions secret.

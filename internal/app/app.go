@@ -10,6 +10,7 @@ import (
 	"github.com/its-haze/league-rpc/internal/config"
 	"github.com/its-haze/league-rpc/internal/presence/template"
 	"github.com/its-haze/league-rpc/internal/state"
+	"github.com/its-haze/league-rpc/internal/version"
 )
 
 // Pauser is the runtime pause control the daemon exposes. Kept as a local
@@ -19,14 +20,46 @@ type Pauser interface {
 	IsPaused() bool
 }
 
+// UpdateStatus is the App Update state the GUI renders. Distinct from Updater
+// (internal/discord), which only concerns Discord presence sends.
+type UpdateStatus struct {
+	Available bool   `json:"available"`
+	Version   string `json:"version"`
+	Notes     string `json:"notes"`
+	LastError string `json:"last_error,omitempty"`
+}
+
+// AppUpdater is the in-app self-update surface the GUI drives, over app-local
+// types so this package need not import the Wails updater it wraps.
+type AppUpdater interface {
+	// Run drives the launch check and the periodic re-check until ctx is
+	// canceled. A dev build returns immediately and never checks.
+	Run(ctx context.Context)
+	// OnChange registers the callback fired whenever the status changes.
+	OnChange(func(UpdateStatus))
+	// Current returns the last known status without checking again.
+	Current() UpdateStatus
+	// Check runs a check now, for the manual "Check for updates" action.
+	Check(ctx context.Context) (UpdateStatus, error)
+	// Download re-checks, then downloads, verifies, and swaps the binary. It
+	// does not restart.
+	Download(ctx context.Context) error
+	// Restart relaunches into the swapped binary. Only valid after Download.
+	Restart(ctx context.Context) error
+	// Changelog returns the latest release's notes as Markdown, or a fixed
+	// placeholder when GitHub can't be reached.
+	Changelog(ctx context.Context) string
+}
+
 // App exposes the settings surface to the frontend. Everything runtime-visible
 // goes through the config.Store it holds; the daemon reads the same store.
 type App struct {
 	store  *config.Store
 	pauser Pauser
 
-	status *statusBridge
-	tester TestPresenter
+	status  *statusBridge
+	tester  TestPresenter
+	updater AppUpdater
 }
 
 // Option configures optional App wiring the settings surface does not need.
@@ -38,6 +71,11 @@ func WithStatus(conns Connections, probe PresenceProbe, states <-chan *state.Sta
 		a.status = newStatusBridge(conns, probe, a.pauser, states)
 		a.tester = tester
 	}
+}
+
+// WithUpdater wires the App Update surface. Omitted entirely in a headless build.
+func WithUpdater(u AppUpdater) Option {
+	return func(a *App) { a.updater = u }
 }
 
 // New builds an App over store and the daemon's pause control.
@@ -84,6 +122,75 @@ func (a *App) TestPresence() {
 		return
 	}
 	a.tester.TestPresence()
+}
+
+// GetVersion returns the running build's version: the release tag injected at
+// build time, or a clear placeholder for a dev build.
+func (a *App) GetVersion() string {
+	return version.Version()
+}
+
+// OnUpdateChange registers the callback fired whenever the App Update status
+// changes. No-op if the updater was never wired (headless build).
+func (a *App) OnUpdateChange(fn func(UpdateStatus)) {
+	if a.updater == nil {
+		return
+	}
+	a.updater.OnChange(fn)
+}
+
+// RunUpdates drives the App Update launch and periodic checks until ctx is
+// canceled. Without WithUpdater it just blocks until then.
+func (a *App) RunUpdates(ctx context.Context) {
+	if a.updater == nil {
+		<-ctx.Done()
+		return
+	}
+	a.updater.Run(ctx)
+}
+
+// GetUpdateStatus returns the last known App Update status without checking
+// again. Zero value until WithUpdater is wired.
+func (a *App) GetUpdateStatus() UpdateStatus {
+	if a.updater == nil {
+		return UpdateStatus{}
+	}
+	return a.updater.Current()
+}
+
+// CheckForUpdates runs the manual "Check for updates" action.
+func (a *App) CheckForUpdates(ctx context.Context) (UpdateStatus, error) {
+	if a.updater == nil {
+		return UpdateStatus{}, nil
+	}
+	return a.updater.Check(ctx)
+}
+
+// StartUpdate downloads, verifies, and swaps the pending release. Returns once
+// the swap is staged; the caller still has to call RestartForUpdate.
+func (a *App) StartUpdate(ctx context.Context) error {
+	if a.updater == nil {
+		return fmt.Errorf("no update available")
+	}
+	return a.updater.Download(ctx)
+}
+
+// RestartForUpdate relaunches into the freshly swapped binary. Only valid
+// after a successful StartUpdate.
+func (a *App) RestartForUpdate(ctx context.Context) error {
+	if a.updater == nil {
+		return fmt.Errorf("no update staged")
+	}
+	return a.updater.Restart(ctx)
+}
+
+// GetChangelog returns the latest release's notes as Markdown, or a fixed
+// placeholder when GitHub can't be reached.
+func (a *App) GetChangelog(ctx context.Context) string {
+	if a.updater == nil {
+		return "changelog unavailable"
+	}
+	return a.updater.Changelog(ctx)
 }
 
 // GetSettings returns the current settings as a value copy for the frontend.

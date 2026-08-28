@@ -4,13 +4,16 @@ import {
   GetSettings,
   ApplySettings,
   GetPresets,
+  GetVersion,
 } from "../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import type { Config } from "../bindings/github.com/its-haze/league-rpc/internal/config/models";
+import UpdateBanner from "./components/UpdateBanner";
 
 // Placeholder shell. Real screens (Home, Display, Behavior, Advanced) land in
 export default function App() {
   const [cfg, setCfg] = useState<Config | null>(null);
   const [presets, setPresets] = useState<Record<string, string | undefined>>({});
+  const [version, setVersion] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -19,6 +22,7 @@ export default function App() {
     GetPresets()
       .then((p) => setPresets(p ?? {}))
       .catch(() => {});
+    GetVersion().then(setVersion).catch(() => {});
 
     const off = Events.On("settings:changed", (ev: { data: Config }) => {
       setCfg(ev.data);
@@ -50,8 +54,11 @@ export default function App() {
         <h1 className="text-xl font-semibold">League RPC</h1>
         <p className="text-muted text-sm">
           The daemon is running in this process. Settings below are live.
+          {version && <span className="font-mono"> · v{version}</span>}
         </p>
       </header>
+
+      <UpdateBanner />
 
       {error && (
         <div className="border-danger text-danger rounded-md border px-3 py-2 text-sm">

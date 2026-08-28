@@ -1,10 +1,13 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/its-haze/league-rpc/internal/config"
+	"github.com/its-haze/league-rpc/internal/version"
 )
 
 // fakePauser records the last SetPaused value and reports it from IsPaused.
@@ -12,6 +15,103 @@ type fakePauser struct{ paused bool }
 
 func (f *fakePauser) SetPaused(p bool) { f.paused = p }
 func (f *fakePauser) IsPaused() bool   { return f.paused }
+
+// fakeUpdater is a scripted AppUpdater.
+type fakeUpdater struct {
+	current     UpdateStatus
+	checkErr    error
+	downloadErr error
+	restartErr  error
+	changelog   string
+	ran         bool
+	onChange    func(UpdateStatus)
+}
+
+func (f *fakeUpdater) Run(ctx context.Context) {
+	f.ran = true
+	<-ctx.Done()
+}
+func (f *fakeUpdater) OnChange(fn func(UpdateStatus)) { f.onChange = fn }
+func (f *fakeUpdater) Current() UpdateStatus          { return f.current }
+func (f *fakeUpdater) Check(context.Context) (UpdateStatus, error) {
+	return f.current, f.checkErr
+}
+func (f *fakeUpdater) Download(context.Context) error   { return f.downloadErr }
+func (f *fakeUpdater) Restart(context.Context) error    { return f.restartErr }
+func (f *fakeUpdater) Changelog(context.Context) string { return f.changelog }
+
+func TestApp_GetVersion_DevPlaceholderWithoutInjection(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+	if got := a.GetVersion(); got != version.DevPlaceholder {
+		t.Fatalf("GetVersion() = %q, want %q", got, version.DevPlaceholder)
+	}
+}
+
+func TestApp_UpdateMethods_NilUpdaterDegradeGracefully(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	if got := a.GetUpdateStatus(); got.Available {
+		t.Fatalf("GetUpdateStatus() = %+v, want empty", got)
+	}
+	if _, err := a.CheckForUpdates(context.Background()); err != nil {
+		t.Fatalf("CheckForUpdates without an updater errored: %v", err)
+	}
+	if err := a.StartUpdate(context.Background()); err == nil {
+		t.Fatal("StartUpdate without an updater should error")
+	}
+	if err := a.RestartForUpdate(context.Background()); err == nil {
+		t.Fatal("RestartForUpdate without an updater should error")
+	}
+	if got := a.GetChangelog(context.Background()); got != "changelog unavailable" {
+		t.Fatalf("GetChangelog() = %q, want the fallback", got)
+	}
+}
+
+func TestApp_UpdateMethods_DelegateToUpdater(t *testing.T) {
+	u := &fakeUpdater{
+		current:   UpdateStatus{Available: true, Version: "2.0.0"},
+		changelog: "## notes",
+	}
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{}, WithUpdater(u))
+
+	if got := a.GetUpdateStatus(); got != u.current {
+		t.Fatalf("GetUpdateStatus() = %+v, want %+v", got, u.current)
+	}
+	if got, err := a.CheckForUpdates(context.Background()); err != nil || got != u.current {
+		t.Fatalf("CheckForUpdates() = (%+v, %v), want (%+v, nil)", got, err, u.current)
+	}
+	if got := a.GetChangelog(context.Background()); got != "## notes" {
+		t.Fatalf("GetChangelog() = %q, want %q", got, "## notes")
+	}
+
+	u.downloadErr = errors.New("boom")
+	if err := a.StartUpdate(context.Background()); err == nil {
+		t.Fatal("StartUpdate did not propagate the updater's error")
+	}
+	u.downloadErr = nil
+	if err := a.StartUpdate(context.Background()); err != nil {
+		t.Fatalf("StartUpdate: %v", err)
+	}
+	if err := a.RestartForUpdate(context.Background()); err != nil {
+		t.Fatalf("RestartForUpdate: %v", err)
+	}
+
+	var seen UpdateStatus
+	a.OnUpdateChange(func(s UpdateStatus) { seen = s })
+	u.onChange(UpdateStatus{Available: true, Version: "3.0.0"})
+	if seen.Version != "3.0.0" {
+		t.Fatalf("OnUpdateChange did not wire through to the updater: %+v", seen)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { a.RunUpdates(ctx); close(done) }()
+	cancel()
+	<-done
+	if !u.ran {
+		t.Fatal("RunUpdates did not call the updater's Run")
+	}
+}
 
 func TestApp_ApplySettingsPersistsAndGetReflects(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())

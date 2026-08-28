@@ -13,6 +13,8 @@ import (
 	"github.com/its-haze/league-rpc/internal/daemon"
 	"github.com/its-haze/league-rpc/internal/logging"
 	"github.com/its-haze/league-rpc/internal/startup"
+	"github.com/its-haze/league-rpc/internal/updates"
+	"github.com/its-haze/league-rpc/internal/version"
 	"github.com/rs/zerolog"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -48,16 +50,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	daemonDone := make(chan struct{})
 
-	guiApp := app.New(store, d, app.WithStatus(d, d, d.SubscribeState(), d))
-	svc := newGUIService(guiApp)
-
 	// Assigned once the window exists; the single-instance callback reads it.
 	var mainWindow *application.WebviewWindow
 
 	wailsApp := application.New(application.Options{
 		Name:        "League RPC",
 		Description: "League of Legends Discord Rich Presence",
-		Services:    []application.Service{application.NewService(svc)},
 		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(frontend.Assets())},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: singleInstanceID,
@@ -73,6 +71,22 @@ func main() {
 			<-daemonDone
 		},
 	})
+
+	// wailsApp.Updater exists only once application.New has run, hence wiring
+	// App Update here rather than earlier alongside the rest of guiApp.
+	updateCoord := updates.New(wailsApp.Updater, updates.NewProductionHTTPDoer(), version.IsDev(), sink.Logger)
+	if updCfg, err := updates.BuildConfig(version.Version()); err != nil {
+		sink.Logger.Warn().Err(err).Msg("could not configure the app updater")
+	} else if err := wailsApp.Updater.Init(updCfg); err != nil {
+		sink.Logger.Warn().Err(err).Msg("could not initialize the app updater")
+	}
+
+	guiApp := app.New(store, d,
+		app.WithStatus(d, d, d.SubscribeState(), d),
+		app.WithUpdater(updateAdapter{updateCoord}),
+	)
+	svc := newGUIService(guiApp)
+	wailsApp.RegisterService(application.NewService(svc))
 
 	// Start the daemon only after application.New has run the single-instance
 	// guard; a second launch exits inside New and never touches Discord.
@@ -91,6 +105,13 @@ func main() {
 		wailsApp.Event.Emit(statusChangedEvent, s)
 	})
 	go guiApp.RunStatus(ctx)
+
+	// Push App Update status to the frontend on change, and drive the launch
+	// check plus the periodic re-check. Both run until the app shuts down.
+	guiApp.OnUpdateChange(func(s app.UpdateStatus) {
+		wailsApp.Event.Emit(updateChangedEvent, s)
+	})
+	go guiApp.RunUpdates(ctx)
 
 	// Apply a start-with-Windows toggle to the registry the moment it changes,
 	// not just on the next launch.
@@ -148,13 +169,13 @@ func main() {
 // reconcileStartupOnChange watches the live config and rewrites the Run entry
 // whenever LaunchAtStartup flips, so a GUI toggle takes effect without a restart.
 func reconcileStartupOnChange(ctx context.Context, store *config.Store, r *startup.Reconciler, logger zerolog.Logger) {
-	updates := store.Subscribe()
+	cfgChanges := store.Subscribe()
 	last := store.Load().Behavior.LaunchAtStartup
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case cfg, ok := <-updates:
+		case cfg, ok := <-cfgChanges:
 			if !ok {
 				return
 			}

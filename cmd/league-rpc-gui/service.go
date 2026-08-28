@@ -16,6 +16,10 @@ const configChangedEvent = "settings:changed"
 // connection state, phase, or last-sent presence changes.
 const statusChangedEvent = "status:changed"
 
+// updateChangedEvent carries an app.UpdateStatus to the frontend whenever the
+// App Update coordinator's launch or periodic check finds something new.
+const updateChangedEvent = "update:changed"
+
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
@@ -72,6 +76,37 @@ func (s *guiService) SetPaused(paused bool) {
 // IsPaused reports the runtime pause flag to the frontend.
 func (s *guiService) IsPaused() bool {
 	return s.app.IsPaused()
+}
+
+// GetVersion returns the running build's version, or a dev placeholder.
+func (s *guiService) GetVersion() string {
+	return s.app.GetVersion()
+}
+
+// GetUpdateStatus returns the last known App Update status.
+func (s *guiService) GetUpdateStatus() app.UpdateStatus {
+	return s.app.GetUpdateStatus()
+}
+
+// CheckForUpdates runs the manual "Check for updates" action.
+func (s *guiService) CheckForUpdates(ctx context.Context) (app.UpdateStatus, error) {
+	return s.app.CheckForUpdates(ctx)
+}
+
+// StartUpdate downloads, verifies, and swaps the pending release.
+func (s *guiService) StartUpdate(ctx context.Context) error {
+	return s.app.StartUpdate(ctx)
+}
+
+// RestartForUpdate relaunches into the freshly swapped binary.
+func (s *guiService) RestartForUpdate(ctx context.Context) error {
+	return s.app.RestartForUpdate(ctx)
+}
+
+// GetChangelog returns the latest release's notes as Markdown, or a fixed
+// placeholder when GitHub can't be reached.
+func (s *guiService) GetChangelog(ctx context.Context) string {
+	return s.app.GetChangelog(ctx)
 }
 
 // publishConfigChanges forwards every config.Store update to the frontend as

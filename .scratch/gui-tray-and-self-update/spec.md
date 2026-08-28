@@ -14,7 +14,7 @@ Backend and startup wiring are done; the frontend and release pipeline are not.
 - [x] 06 Per-mode display overrides
 - [x] 07 Start-with-Windows registry reconciler
 - [x] 08 Status bridge, last-sent preview, and Test presence
-- [ ] 09 In-app update client and UI
+- [x] 09 In-app update client and UI
 - [ ] 10 Release pipeline and update signing
 - [ ] 11 Frontend shell: navigation, top strip, theme
 - [ ] 12 Frontend: Display screen
