@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter/wght.css";
 @import "./tokens.css";
 
 /* Map the design tokens into Tailwind v4's theme so utilities like
@@ -15,6 +16,7 @@
   --color-ok: var(--color-ok);
   --color-warn: var(--color-warn);
   --color-danger: var(--color-danger);
+  --color-danger-text: var(--color-danger-text);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
@@ -22,6 +24,12 @@
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
 }
 
 html,

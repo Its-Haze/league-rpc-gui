@@ -1,16 +1,17 @@
-/* Design tokens for the League RPC GUI. Values are provisional and get a */
+/* Design tokens for the League RPC GUI, set with a frontend-design pass. */
 :root {
-  --color-bg: #f7f7f9;
+  --color-bg: #f5f6fa;
   --color-surface: #ffffff;
-  --color-surface-raised: #f0f1f4;
-  --color-border: #d9dbe1;
-  --color-text: #1b1d23;
-  --color-text-muted: #5c606b;
-  --color-accent: #6d5efc;
+  --color-surface-raised: #eceff6;
+  --color-border: #d7dbe6;
+  --color-text: #171a22;
+  --color-text-muted: #5b6070;
+  --color-accent: #3865d1;
   --color-accent-text: #ffffff;
-  --color-ok: #2f9e56;
-  --color-warn: #c9781a;
-  --color-danger: #cc3944;
+  --color-ok: #1f8a4c;
+  --color-warn: #b06a1a;
+  --color-danger: #c93947;
+  --color-danger-text: #ffffff;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -23,8 +24,9 @@
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter Variable", "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", ui-monospace, "SFMono-Regular", monospace;
+  --text-xs: 0.6875rem;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
   --text-lg: 1.125rem;
@@ -33,30 +35,32 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-bg: #0f1117;
-    --color-surface: #171a21;
-    --color-surface-raised: #1f232c;
-    --color-border: #2c313c;
-    --color-text: #e7e9ee;
-    --color-text-muted: #9aa0ac;
-    --color-accent: #8a7dff;
-    --color-accent-text: #10121a;
-    --color-ok: #4cc177;
+    --color-bg: #12141c;
+    --color-surface: #181b24;
+    --color-surface-raised: #20242f;
+    --color-border: #2b2f3c;
+    --color-text: #e8eaf0;
+    --color-text-muted: #9198a8;
+    --color-accent: #5b8cff;
+    --color-accent-text: #06101f;
+    --color-ok: #3fb873;
     --color-warn: #e0983f;
     --color-danger: #e0616b;
+    --color-danger-text: #1a0507;
   }
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #0f1117;
-  --color-surface: #171a21;
-  --color-surface-raised: #1f232c;
-  --color-border: #2c313c;
-  --color-text: #e7e9ee;
-  --color-text-muted: #9aa0ac;
-  --color-accent: #8a7dff;
-  --color-accent-text: #10121a;
-  --color-ok: #4cc177;
+  --color-bg: #12141c;
+  --color-surface: #181b24;
+  --color-surface-raised: #20242f;
+  --color-border: #2b2f3c;
+  --color-text: #e8eaf0;
+  --color-text-muted: #9198a8;
+  --color-accent: #5b8cff;
+  --color-accent-text: #06101f;
+  --color-ok: #3fb873;
   --color-warn: #e0983f;
   --color-danger: #e0616b;
+  --color-danger-text: #1a0507;
 }

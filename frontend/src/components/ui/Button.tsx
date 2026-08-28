@@ -1,0 +1,32 @@
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { Slot } from "@radix-ui/react-slot";
+
+type Variant = "primary" | "secondary" | "ghost" | "danger";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  /** Render as the single child element instead of a <button> (Radix asChild pattern). */
+  asChild?: boolean;
+}
+
+const base =
+  "inline-flex items-center justify-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium " +
+  "transition-colors disabled:opacity-50 disabled:pointer-events-none " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
+
+const variantClass: Record<Variant, string> = {
+  primary: "bg-accent text-accent-text hover:opacity-90",
+  secondary: "border border-border bg-surface-raised text-text hover:bg-border",
+  ghost: "bg-transparent text-text hover:bg-surface-raised",
+  danger: "bg-danger text-danger-text hover:opacity-90",
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = "secondary", className = "", asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return (
+      <Comp ref={ref} className={`${base} ${variantClass[variant]} ${className}`} {...props} />
+    );
+  },
+);
+Button.displayName = "Button";

@@ -16,7 +16,7 @@ Backend and startup wiring are done; the frontend and release pipeline are not.
 - [x] 08 Status bridge, last-sent preview, and Test presence
 - [x] 09 In-app update client and UI
 - [ ] 10 Release pipeline and update signing
-- [ ] 11 Frontend shell: navigation, top strip, theme
+- [x] 11 Frontend shell: navigation, top strip, theme
 - [ ] 12 Frontend: Display screen
 - [ ] 13 Frontend: Behavior screen
 - [ ] 14 Frontend: Advanced screen

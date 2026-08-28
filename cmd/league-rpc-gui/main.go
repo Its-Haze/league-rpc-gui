@@ -56,6 +56,7 @@ func main() {
 	wailsApp := application.New(application.Options{
 		Name:        "League RPC",
 		Description: "League of Legends Discord Rich Presence",
+		Icon:        appIcon,
 		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(frontend.Assets())},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: singleInstanceID,
@@ -148,8 +149,8 @@ func main() {
 	})
 
 	systemTray := wailsApp.SystemTray.New()
-	systemTray.SetIcon(icons.SystrayLight)
-	systemTray.SetDarkModeIcon(icons.SystrayDark)
+	systemTray.SetIcon(trayIcon)
+	systemTray.SetDarkModeIcon(trayIcon)
 	systemTray.SetTooltip("League RPC")
 	if runtime.GOOS == "darwin" {
 		systemTray.SetTemplateIcon(icons.SystrayMacTemplate)
