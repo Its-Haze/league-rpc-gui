@@ -1,6 +1,30 @@
 # GUI, system tray, and in-app self-update
 
-Status: ready-for-agent
+Status: in-progress
+
+## Progress
+
+Backend and startup wiring are done; the frontend and release pipeline are not.
+
+- [x] 01 Wails shell hosting the daemon in one process
+- [x] 02 Config schema v2 and one-time migration
+- [x] 03 Logging to a rotating file and an in-memory ring buffer
+- [x] 04 System tray, window lifecycle, and the Pause flag
+- [x] 05 Presence template engine
+- [x] 06 Per-mode display overrides
+- [x] 07 Start-with-Windows registry reconciler
+- [ ] 08 Status bridge, last-sent preview, and Test presence
+- [ ] 09 In-app update client and UI
+- [ ] 10 Release pipeline and update signing
+- [ ] 11 Frontend shell: navigation, top strip, theme
+- [ ] 12 Frontend: Display screen
+- [ ] 13 Frontend: Behavior screen
+- [ ] 14 Frontend: Advanced screen
+- [ ] 15 Frontend: Home dashboard and first-run onboarding
+- [ ] 16 Frontend: Help and About
+- [ ] 17 Docs and GitHub issue templates
+- [x] 18 Per-mode display override leaks into idle and post-game presence (follow-up to 06)
+- [x] 19 GameModes() can silently drift from the GameMode const block (follow-up to 06)
 
 ## Problem Statement
 
