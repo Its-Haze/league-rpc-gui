@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"runtime"
 
 	"github.com/its-haze/league-rpc/frontend"
@@ -11,6 +12,8 @@ import (
 	"github.com/its-haze/league-rpc/internal/config"
 	"github.com/its-haze/league-rpc/internal/daemon"
 	"github.com/its-haze/league-rpc/internal/logging"
+	"github.com/its-haze/league-rpc/internal/startup"
+	"github.com/rs/zerolog"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/icons"
@@ -34,6 +37,13 @@ func main() {
 
 	store := config.NewStore(cfg)
 	d := daemon.Wire(store, sink.Logger)
+
+	// Keep the "start with Windows" registry entry matching the setting, both
+	// now and whenever the GUI toggles it.
+	reconciler := startup.New(startup.SystemRunKey())
+	if err := reconciler.Reconcile(cfg.Behavior.LaunchAtStartup); err != nil {
+		sink.Logger.Warn().Err(err).Msg("could not reconcile start-with-Windows entry")
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	daemonDone := make(chan struct{})
@@ -74,10 +84,19 @@ func main() {
 	// without polling. Runs until the app shuts down.
 	go svc.publishConfigChanges(ctx, wailsApp)
 
+	// Apply a start-with-Windows toggle to the registry the moment it changes,
+	// not just on the next launch.
+	go reconcileStartupOnChange(ctx, store, reconciler, sink.Logger)
+
+	// A run launched by the Run entry carries the hidden marker and opens to
+	// the tray; a manual run shows the window.
+	startHidden := startup.StartedHidden(os.Args[1:])
+
 	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "League RPC",
 		Width:            960,
 		Height:           640,
+		Hidden:           startHidden,
 		BackgroundColour: application.NewRGB(15, 17, 23),
 		URL:              "/",
 	})
@@ -115,6 +134,30 @@ func main() {
 
 	if err := wailsApp.Run(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// reconcileStartupOnChange watches the live config and rewrites the Run entry
+// whenever LaunchAtStartup flips, so a GUI toggle takes effect without a restart.
+func reconcileStartupOnChange(ctx context.Context, store *config.Store, r *startup.Reconciler, logger zerolog.Logger) {
+	updates := store.Subscribe()
+	last := store.Load().Behavior.LaunchAtStartup
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case cfg, ok := <-updates:
+			if !ok {
+				return
+			}
+			if cfg.Behavior.LaunchAtStartup == last {
+				continue
+			}
+			last = cfg.Behavior.LaunchAtStartup
+			if err := r.Reconcile(last); err != nil {
+				logger.Warn().Err(err).Msg("could not update start-with-Windows entry")
+			}
+		}
 	}
 }
 
