@@ -11,11 +11,11 @@ import (
 	"github.com/its-haze/league-rpc/internal/app"
 	"github.com/its-haze/league-rpc/internal/config"
 	"github.com/its-haze/league-rpc/internal/daemon"
+	"github.com/its-haze/league-rpc/internal/discordapp"
 	"github.com/its-haze/league-rpc/internal/logging"
 	"github.com/its-haze/league-rpc/internal/startup"
 	"github.com/its-haze/league-rpc/internal/updates"
 	"github.com/its-haze/league-rpc/internal/version"
-	"github.com/rs/zerolog"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/icons"
@@ -82,9 +82,16 @@ func main() {
 		sink.Logger.Warn().Err(err).Msg("could not initialize the app updater")
 	}
 
+	logDir, err := logging.LogDir()
+	if err != nil {
+		sink.Logger.Warn().Err(err).Msg("could not resolve the logs directory")
+	}
+
 	guiApp := app.New(store, d,
-		app.WithStatus(d, d, d.SubscribeState(), d),
+		app.WithStatus(d, d, d.SubscribeState()),
 		app.WithUpdater(updateAdapter{updateCoord}),
+		app.WithLogs(sink.Ring, logDir),
+		app.WithAppNameLookup(discordapp.New(discordapp.NewProductionHTTPDoer())),
 	)
 	svc := newGUIService(guiApp)
 	wailsApp.RegisterService(application.NewService(svc))
@@ -99,6 +106,10 @@ func main() {
 	// Bridge config.Store changes to a frontend event so screens can react
 	// without polling. Runs until the app shuts down.
 	go svc.publishConfigChanges(ctx, wailsApp)
+
+	// Live-tail the log ring to the frontend so the Help screen's viewer
+	// doesn't have to poll. Runs until the app shuts down.
+	go svc.publishLogLines(ctx, wailsApp)
 
 	// Push status snapshots to the frontend on change, and drive the bridge
 	// that assembles them. Both run until the app shuts down.
@@ -116,7 +127,16 @@ func main() {
 
 	// Apply a start-with-Windows toggle to the registry the moment it changes,
 	// not just on the next launch.
-	go reconcileStartupOnChange(ctx, store, reconciler, sink.Logger)
+	go watchConfigField(ctx, store,
+		func(c *config.Config) bool { return c.Behavior.LaunchAtStartup },
+		func(want bool) {
+			if err := reconciler.Reconcile(want); err != nil {
+				sink.Logger.Warn().Err(err).Msg("could not update start-with-Windows entry")
+			}
+		})
+
+	// Follow a debug-logging toggle immediately, not just on the next launch.
+	go watchConfigField(ctx, store, func(c *config.Config) bool { return c.Advanced.DebugMode }, logging.SetDebug)
 
 	// A run launched by the Run entry carries the hidden marker and opens to
 	// the tray; a manual run shows the window.
@@ -167,25 +187,22 @@ func main() {
 	}
 }
 
-// reconcileStartupOnChange watches the live config and rewrites the Run entry
-// whenever LaunchAtStartup flips, so a GUI toggle takes effect without a restart.
-func reconcileStartupOnChange(ctx context.Context, store *config.Store, r *startup.Reconciler, logger zerolog.Logger) {
-	cfgChanges := store.Subscribe()
-	last := store.Load().Behavior.LaunchAtStartup
+// watchConfigField calls fn whenever extract's live-config reading changes,
+// until ctx is canceled. Shared by every apply-immediately watcher below.
+func watchConfigField[T comparable](ctx context.Context, store *config.Store, extract func(*config.Config) T, fn func(T)) {
+	changes := store.Subscribe()
+	last := extract(store.Load())
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case cfg, ok := <-cfgChanges:
+		case cfg, ok := <-changes:
 			if !ok {
 				return
 			}
-			if cfg.Behavior.LaunchAtStartup == last {
-				continue
-			}
-			last = cfg.Behavior.LaunchAtStartup
-			if err := r.Reconcile(last); err != nil {
-				logger.Warn().Err(err).Msg("could not update start-with-Windows entry")
+			if next := extract(cfg); next != last {
+				last = next
+				fn(next)
 			}
 		}
 	}

@@ -66,16 +66,7 @@ type Daemon struct {
 	// on every Daemon and clears presence for as long as it is set.
 	paused      atomic.Bool
 	pauseSignal chan struct{}
-
-	// testActive is set while a Test presence window is open. presenceLoop
-	// leaves presence alone during that window so the sample stays visible.
-	testActive   atomic.Bool
-	testDuration time.Duration
-	testSignal   chan struct{}
 }
-
-// DefaultTestPresenceDuration is how long App.TestPresence shows its sample.
-const DefaultTestPresenceDuration = 30 * time.Second
 
 // New builds a Daemon that drives presence from stateMgr through updater.
 func New(
@@ -97,8 +88,6 @@ func New(
 		presencePollInterval: presencePollInterval,
 		placeholderInterval:  placeholderInterval,
 		pauseSignal:          make(chan struct{}, 1),
-		testSignal:           make(chan struct{}, 1),
-		testDuration:         DefaultTestPresenceDuration,
 	}
 }
 
@@ -114,25 +103,6 @@ func (d *Daemon) SetPaused(paused bool) {
 
 // IsPaused reports the pause flag. A fresh Daemon is always unpaused.
 func (d *Daemon) IsPaused() bool { return d.paused.Load() }
-
-// TestPresence shows a fixed sample presence on Discord for testDuration, then
-func (d *Daemon) TestPresence() {
-	if d.paused.Load() {
-		return
-	}
-	if !d.testActive.CompareAndSwap(false, true) {
-		return
-	}
-	d.updater.PushSample(discord.BuildTestPresence())
-
-	time.AfterFunc(d.testDuration, func() {
-		d.testActive.Store(false)
-		select {
-		case d.testSignal <- struct{}{}:
-		default:
-		}
-	})
-}
 
 // DiscordConnected reports whether Discord IPC is currently reachable.
 func (d *Daemon) DiscordConnected() bool { return d.discord.Connected() }
@@ -265,12 +235,6 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 			return
 		}
 
-		// A Test presence window owns Discord for its duration: hold the
-		// current mode and let the sample stand until the window closes.
-		if d.testActive.Load() {
-			return
-		}
-
 		// Discord can connect after the LCU already has; resend the
 		// current mode's presence instead of waiting for a state change.
 		nowConnected := d.discord.Connected()
@@ -348,29 +312,21 @@ func (d *Daemon) presenceLoop(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if mode == modeConnected && !d.testActive.Load() {
+			if mode == modeConnected {
 				d.updater.DelayUpdate(st)
 			}
 
 		case <-cfgUpdates:
 			// Display settings may have changed; reflect them now instead of
 			// waiting for the next real state change or poll tick.
-			if mode == modeConnected && !d.testActive.Load() {
+			if mode == modeConnected {
 				d.updater.ImmediateUpdate(d.state.Get())
 			}
 
 		case <-placeholderC:
-			if !d.testActive.Load() {
-				sendPlaceholder()
-			}
+			sendPlaceholder()
 
 		case <-d.pauseSignal:
-			reconcile()
-
-		case <-d.testSignal:
-			// A Test presence window just closed; re-send live presence from
-			// scratch so whatever the sample replaced comes back.
-			mode = modeUnknown
 			reconcile()
 
 		case <-ticker.C:

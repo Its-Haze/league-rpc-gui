@@ -4,12 +4,27 @@
 
 **Blocked by:** 11, 03, 09
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Log viewer fills from `GetRecentLogs()` and live-tails via `log:line`; scroll-lock when the user scrolls up
-- [ ] `cmd/league-rpc-gui` emits `log:line` from the `internal/logging` subscribe channel
-- [ ] "Open logs folder" binding opens the `%APPDATA%` logs directory in Explorer
-- [ ] "Copy diagnostics" binding returns a markdown block; the button copies it to the clipboard
-- [ ] Links: Discord (`https://discord.haze.sh`), bug report, and feature request open in the browser
-- [ ] About shows the version, a working "Check for updates", and the markdown changelog (with the offline fallback)
-- [ ] Vitest: log-tail append and scroll-lock, diagnostics formatting
+- [x] Log viewer fills from `GetRecentLogs()` and live-tails via `log:line`; scroll-lock when the user scrolls up
+- [x] `cmd/league-rpc-gui` emits `log:line` from the `internal/logging` subscribe channel
+- [x] "Open logs folder" binding opens the `%APPDATA%` logs directory in Explorer
+- [x] "Copy diagnostics" binding returns a markdown block; the button copies it to the clipboard
+- [x] Links: Discord (`https://discord.haze.sh`), bug report, and feature request open in the browser
+- [x] About shows the version, a working "Check for updates", and the markdown changelog (with the offline fallback)
+- [x] Vitest: log-tail append and scroll-lock, diagnostics formatting
+
+**Notes:** Added the `internal/app` bindings this ticket needed: `GetRecentLogs`/`SubscribeLogs`
+(wrap the existing `logging.Ring`), `OpenLogsFolder` (shells to Explorer via an injectable
+`openFolder func(string) error`, so tests never actually shell out), and `GetDiagnostics`
+(version, OS, the three connection states, paused, phase, last update error). `SubscribeLogs`
+is bridged to a `log:line` Wails event by a new `guiService.publishLogLines` goroutine, wired in
+`main.go` next to the existing `publishConfigChanges`. "Copy diagnostics" wraps the backend
+string in a Markdown code fence (`lib/diagnostics.ts`) before writing it to the clipboard, so
+pasting into a GitHub issue renders as a preformatted block. Bug-report and feature-request URLs
+(`lib/links.ts`) point at `github.com/its-haze/league-rpc/issues/new?template=...`, matching the
+module path; ticket 17's issue templates and the eventual canonical repo URL are unverified
+against this yet. About keeps `UpdateBanner` for the actionable "a new version is available" banner
+and adds its own persistent version/check-for-updates/changelog block below it, since `UpdateBanner`
+hides itself entirely when no update is available and the ticket wants those controls visible
+regardless.

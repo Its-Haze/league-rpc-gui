@@ -340,20 +340,6 @@ func BuildLaunchingPresence(start int64) *RPCData {
 	}
 }
 
-// BuildTestPresence is the fixed sample the Test presence button shows, so a
-// user can confirm the Discord wiring works without launching League.
-func BuildTestPresence() *RPCData {
-	return &RPCData{
-		LargeImage: GetLeagueLogoLargeURL(),
-		LargeText:  "League RPC",
-		SmallImage: GetLeagueLogoURL(),
-		SmallText:  constants.SmallText,
-		Details:    "Test presence",
-		State:      "If you can see this, your setup works",
-		Start:      time.Now().Unix(),
-	}
-}
-
 // isForcedClassicIconMode reports whether gameMode forces the classic icon
 // as the small image regardless of rank.
 func isForcedClassicIconMode(gameMode types.GameMode) bool {

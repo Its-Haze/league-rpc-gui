@@ -358,29 +358,6 @@ func (u *Updater) UpdatePlaceholder(rpcData *RPCData) {
 	u.stopHeartbeat()
 }
 
-// PushSample transmits rpc as-is, bypassing the state mapper, and defends it
-// with the heartbeat like a real presence. It backs App.TestPresence.
-func (u *Updater) PushSample(rpc *RPCData) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	if u.timer != nil {
-		u.timer.Stop()
-		u.timer = nil
-	}
-
-	if err := u.client.UpdatePresence(rpc); err != nil {
-		u.logger.Warn().Err(err).Msg("Failed to send test presence")
-		return
-	}
-
-	u.previousState = nil
-	u.previousRPCData = rpc.Copy()
-	u.lastSentDetails = rpc.Details
-	u.recordSent(rpc)
-	u.startReclaimBurst()
-}
-
 // ClearPresence clears the Discord presence
 func (u *Updater) ClearPresence() {
 	u.mu.Lock()

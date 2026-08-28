@@ -55,10 +55,14 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// A versionless (or older) file is migrated onto the current tree and
-	// written back so the on-disk file is upgraded in place.
-	if schemaVersionOf(data) < CurrentSchemaVersion {
-		migrated, err := migrateFromV1(data)
+	// A versionless (or older) file is migrated one step at a time onto the
+	// current tree and written back, so an older file always ends up current.
+	if version := schemaVersionOf(data); version < CurrentSchemaVersion {
+		migrate := migrateFromV1
+		if version >= 2 {
+			migrate = migrateV2ToV3
+		}
+		migrated, err := migrate(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to migrate config file: %w", err)
 		}

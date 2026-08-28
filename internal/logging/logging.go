@@ -69,16 +69,23 @@ func New(opts Options) (*Sink, error) {
 	}
 	ring := NewRing(opts.RingSize)
 
-	level := zerolog.InfoLevel
-	if opts.Debug {
-		level = zerolog.DebugLevel
-	}
-
+	// Left unset on the logger itself so the level can change live: with no
+	// per-logger level, zerolog filters against the process-wide global level.
+	SetDebug(opts.Debug)
 	logger := zerolog.New(zerolog.MultiLevelWriter(file, ring)).
-		Level(level).
 		With().Timestamp().Logger()
 
 	return &Sink{Logger: logger, Ring: ring, file: file}, nil
+}
+
+// SetDebug updates the process-wide log level immediately, so a config
+// change to Advanced.DebugMode takes effect without restarting.
+func SetDebug(debug bool) {
+	if debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
 }
 
 // Close flushes and closes the underlying file.

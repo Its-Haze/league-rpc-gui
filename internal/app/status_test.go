@@ -38,10 +38,6 @@ func (f *fakeProbe) LastSent() discord.LastSent {
 	return f.ls
 }
 
-type fakeTester struct{ calls atomic.Int32 }
-
-func (f *fakeTester) TestPresence() { f.calls.Add(1) }
-
 func TestStatusBridge_SnapshotAssemblesFromEverySource(t *testing.T) {
 	conns := &fakeConns{}
 	conns.discord.Store(true)
@@ -136,24 +132,11 @@ func TestApp_GetStatusReflectsSourcesAndZeroWithoutWiring(t *testing.T) {
 	conns := &fakeConns{}
 	conns.lcu.Store(true)
 	wired := New(store, &fakePauser{paused: true},
-		WithStatus(conns, &fakeProbe{}, nil, &fakeTester{}))
+		WithStatus(conns, &fakeProbe{}, nil))
 
 	got := wired.GetStatus()
 	if !got.LCUConnected || !got.Paused {
 		t.Fatalf("GetStatus = %+v, want LCUConnected and Paused set", got)
-	}
-}
-
-func TestApp_TestPresenceDelegatesToTester(t *testing.T) {
-	tester := &fakeTester{}
-	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{},
-		WithStatus(&fakeConns{}, &fakeProbe{}, nil, tester))
-
-	a.TestPresence()
-	a.TestPresence()
-
-	if got := tester.calls.Load(); got != 2 {
-		t.Fatalf("tester saw %d calls, want 2", got)
 	}
 }
 

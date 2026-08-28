@@ -26,11 +26,6 @@ type PresenceProbe interface {
 	LastSent() discord.LastSent
 }
 
-// TestPresenter shows a fixed sample presence for a fixed window.
-type TestPresenter interface {
-	TestPresence()
-}
-
 // StatusSnapshot is the status read model the GUI renders. It is assembled in
 // one place and pushed on change so screens never poll the daemon.
 type StatusSnapshot struct {

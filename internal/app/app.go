@@ -8,9 +8,12 @@ import (
 	"sort"
 
 	"github.com/its-haze/league-rpc/internal/config"
+	"github.com/its-haze/league-rpc/internal/discord"
+	"github.com/its-haze/league-rpc/internal/logging"
 	"github.com/its-haze/league-rpc/internal/presence/template"
 	"github.com/its-haze/league-rpc/internal/state"
 	"github.com/its-haze/league-rpc/internal/version"
+	"github.com/its-haze/league-rpc/pkg/types"
 )
 
 // Pauser is the runtime pause control the daemon exposes. Kept as a local
@@ -51,25 +54,33 @@ type AppUpdater interface {
 	Changelog(ctx context.Context) string
 }
 
+// AppNameLookup resolves a Discord Application ID to its public display
+type AppNameLookup interface {
+	Name(ctx context.Context, appID string) (string, error)
+}
+
 // App exposes the settings surface to the frontend. Everything runtime-visible
 // goes through the config.Store it holds; the daemon reads the same store.
 type App struct {
 	store  *config.Store
 	pauser Pauser
 
-	status  *statusBridge
-	tester  TestPresenter
-	updater AppUpdater
+	status    *statusBridge
+	updater   AppUpdater
+	appLookup AppNameLookup
+
+	logs       *logging.Ring
+	logDir     string
+	openFolder func(string) error
 }
 
 // Option configures optional App wiring the settings surface does not need.
 type Option func(*App)
 
-// WithStatus wires the status bridge (conns, probe, and state changes on
-func WithStatus(conns Connections, probe PresenceProbe, states <-chan *state.State, tester TestPresenter) Option {
+// WithStatus wires the status bridge over conns, probe, and state changes.
+func WithStatus(conns Connections, probe PresenceProbe, states <-chan *state.State) Option {
 	return func(a *App) {
 		a.status = newStatusBridge(conns, probe, a.pauser, states)
-		a.tester = tester
 	}
 }
 
@@ -78,9 +89,14 @@ func WithUpdater(u AppUpdater) Option {
 	return func(a *App) { a.updater = u }
 }
 
+// WithAppNameLookup wires the Discord Application ID name lookup.
+func WithAppNameLookup(l AppNameLookup) Option {
+	return func(a *App) { a.appLookup = l }
+}
+
 // New builds an App over store and the daemon's pause control.
 func New(store *config.Store, pauser Pauser, opts ...Option) *App {
-	a := &App{store: store, pauser: pauser}
+	a := &App{store: store, pauser: pauser, openFolder: defaultOpenFolder}
 	for _, opt := range opts {
 		opt(a)
 	}
@@ -113,15 +129,6 @@ func (a *App) RunStatus(ctx context.Context) {
 		return
 	}
 	a.status.run(ctx)
-}
-
-// TestPresence shows a fixed sample presence in Discord for a few seconds so
-// the user can confirm their settings without launching League.
-func (a *App) TestPresence() {
-	if a.tester == nil {
-		return
-	}
-	a.tester.TestPresence()
 }
 
 // GetVersion returns the running build's version: the release tag injected at
@@ -209,6 +216,34 @@ func (a *App) GetPresets() map[string]string {
 	return config.DiscordAppIDPresets()
 }
 
+// GetApplicationName resolves appID to its public Discord Application name,
+// so a custom ID can be shown by name instead of just its digits.
+func (a *App) GetApplicationName(ctx context.Context, appID string) (string, error) {
+	if a.appLookup == nil {
+		return "", fmt.Errorf("application name lookup unavailable")
+	}
+	return a.appLookup.Name(ctx, appID)
+}
+
+// ConfigBounds is the min/max the Advanced screen clamps its numeric fields
+// to, read from config so the UI can't drift from what Validate() accepts.
+type ConfigBounds struct {
+	UpdateIntervalMin       int `json:"update_interval_min"`
+	UpdateIntervalMax       int `json:"update_interval_max"`
+	StatsPollingIntervalMin int `json:"stats_polling_interval_min"`
+	StatsPollingIntervalMax int `json:"stats_polling_interval_max"`
+}
+
+// GetConfigBounds returns the numeric bounds the Advanced screen clamps to.
+func (a *App) GetConfigBounds() ConfigBounds {
+	return ConfigBounds{
+		UpdateIntervalMin:       config.MinUpdateInterval,
+		UpdateIntervalMax:       config.MaxUpdateInterval,
+		StatsPollingIntervalMin: config.MinStatsPollingInterval,
+		StatsPollingIntervalMax: config.MaxStatsPollingInterval,
+	}
+}
+
 // SetPaused toggles the runtime pause flag. Paused clears Discord presence
 // immediately; it never persists to Config and resets to unpaused on restart.
 func (a *App) SetPaused(paused bool) {
@@ -224,6 +259,12 @@ func (a *App) IsPaused() bool {
 // successful ApplySettings. The GUI adapter forwards these to the frontend.
 func (a *App) SubscribeSettings() <-chan *config.Config {
 	return a.store.Subscribe()
+}
+
+// GetTemplateTokens returns the {token} names valid for ctx, so the Display
+// screen can show a reference next to each editor. Nil for an unknown ctx.
+func (a *App) GetTemplateTokens(ctx string) []string {
+	return template.KnownTokens(template.Context(ctx))
 }
 
 // TemplatePreview is the rendered result of one presence template pair against
@@ -244,7 +285,42 @@ func (a *App) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample
 	if len(sample) == 0 {
 		sample = template.SampleData(tctx)
 	}
+	return renderTemplatePair(tctx, tmpl, sample), nil
+}
 
+// GetDisplayPreview renders ctx's template against sample data with the
+func (a *App) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool) (TemplatePreview, error) {
+	tctx := template.Context(ctx)
+	if !template.IsContext(tctx) {
+		return TemplatePreview{}, fmt.Errorf("unknown presence context %q", ctx)
+	}
+	sample := template.SampleData(tctx)
+	if !showStats {
+		sample["stats"] = ""
+	}
+	return renderTemplatePair(tctx, tmpl, sample), nil
+}
+
+// PreviewAssets are static sample image URLs the Display screen's live
+// preview uses to approximate a real presence card.
+type PreviewAssets struct {
+	ChampionSkinURL string `json:"champion_skin_url"`
+	RankEmblemURL   string `json:"rank_emblem_url"`
+	LeagueLogoURL   string `json:"league_logo_url"`
+}
+
+// GetPreviewAssets returns those sample image URLs.
+func (a *App) GetPreviewAssets() PreviewAssets {
+	return PreviewAssets{
+		ChampionSkinURL: discord.GetChampionSkinURL("Chogath", 1),
+		RankEmblemURL:   discord.GetRankEmblemURL(types.TierGold),
+		LeagueLogoURL:   discord.GetLeagueLogoURL(),
+	}
+}
+
+// renderTemplatePair renders tmpl for tctx against sample and collects any
+// unknown-token warnings, shared by RenderTemplatePreview and GetDisplayPreview.
+func renderTemplatePair(tctx template.Context, tmpl config.TemplatePair, sample map[string]string) TemplatePreview {
 	details, state, unknown := template.RenderPair(tctx, tmpl.Details, tmpl.State, sample)
 
 	var warnings []string
@@ -253,5 +329,5 @@ func (a *App) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample
 	}
 	sort.Strings(warnings)
 
-	return TemplatePreview{Details: details, State: state, Warnings: warnings}, nil
+	return TemplatePreview{Details: details, State: state, Warnings: warnings}
 }

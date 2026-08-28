@@ -15,20 +15,11 @@ export interface AppShellProps {
   onThemeChange: (theme: ThemeSetting) => void;
   themeDisabled?: boolean;
   error?: ReactNode;
-  homeContent: ReactNode;
-  aboutContent: ReactNode;
 }
 
 // The app shell: sidebar + top strip stay mounted across every section,
 // so the connection lights and Pause toggle never remount on navigation.
-export function AppShell({
-  theme,
-  onThemeChange,
-  themeDisabled,
-  error,
-  homeContent,
-  aboutContent,
-}: AppShellProps) {
+export function AppShell({ theme, onThemeChange, themeDisabled, error }: AppShellProps) {
   const { section, navigate } = useRoute();
 
   return (
@@ -40,12 +31,12 @@ export function AppShell({
           <div className="border-danger text-danger border-b px-6 py-2 text-sm">{error}</div>
         )}
         <main className="min-w-0 flex-1 overflow-y-auto p-6">
-          {section === "home" && <HomeScreen>{homeContent}</HomeScreen>}
+          {section === "home" && <HomeScreen />}
           {section === "display" && <DisplayScreen />}
           {section === "behavior" && <BehaviorScreen />}
           {section === "advanced" && <AdvancedScreen />}
           {section === "help" && <HelpScreen />}
-          {section === "about" && <AboutScreen>{aboutContent}</AboutScreen>}
+          {section === "about" && <AboutScreen />}
         </main>
       </div>
     </div>

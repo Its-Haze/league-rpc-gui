@@ -47,5 +47,20 @@ func migrateFromV1(raw []byte) (*Config, error) {
 	c.Advanced.StatsPollingInterval = l.StatsPollingInterval
 	c.Advanced.DebugMode = l.DebugMode
 	c.SchemaVersion = CurrentSchemaVersion
+	// An upgrading install already went through first-run setup before
+	// onboarding existed; don't show it the walkthrough again.
+	c.OnboardingComplete = true
 	return c, nil
+}
+
+// migrateV2ToV3 parses raw as a v2 tree, same shape as Config but possibly
+// missing OnboardingComplete, and backfills it.
+func migrateV2ToV3(raw []byte) (*Config, error) {
+	var c Config
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return nil, err
+	}
+	c.OnboardingComplete = true
+	c.SchemaVersion = CurrentSchemaVersion
+	return &c, nil
 }

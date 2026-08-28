@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { Events } from "@wailsio/runtime";
 import {
   GetStatus,
   SetPaused,
 } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
-import type { StatusSnapshot } from "../../../bindings/github.com/its-haze/league-rpc/internal/app/models";
+import { useStatus } from "../../hooks/useStatus";
 import { Select, Toggle } from "../ui";
 import { THEME_SETTINGS, type ThemeSetting } from "../../lib/theme";
 import { ConnectionLight } from "./ConnectionLight";
-
-const STATUS_CHANGED_EVENT = "status:changed";
 
 const THEME_OPTIONS = THEME_SETTINGS.map((value) => ({
   value,
@@ -26,21 +23,14 @@ export interface TopStripProps {
 // Persistent strip shown above every screen: the three connection lights
 // driven by status:changed, the Pause toggle, and the theme picker.
 export function TopStrip({ theme, onThemeChange, themeDisabled }: TopStripProps) {
-  const [status, setStatus] = useState<StatusSnapshot | null>(null);
+  const status = useStatus();
   const [paused, setPaused] = useState(false);
 
+  // Local override wins until the daemon's own status:changed catches up, so
+  // the toggle reflects the click immediately rather than the next broadcast.
   useEffect(() => {
-    GetStatus().then((s) => {
-      setStatus(s);
-      setPaused(s.paused);
-    }).catch(() => {});
-
-    const off = Events.On(STATUS_CHANGED_EVENT, (ev: { data: StatusSnapshot }) => {
-      setStatus(ev.data);
-      setPaused(ev.data.paused);
-    });
-    return () => off();
-  }, []);
+    if (status) setPaused(status.paused);
+  }, [status?.paused]);
 
   async function togglePaused(next: boolean) {
     setPaused(next);

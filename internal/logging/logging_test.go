@@ -67,6 +67,36 @@ func TestNew_LevelFollowsDebugFlag(t *testing.T) {
 	}
 }
 
+func TestSetDebug_ChangesLevelLive(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	sink, err := New(Options{Debug: false})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer sink.Close()
+
+	sink.Logger.Debug().Msg("dropped before SetDebug")
+	SetDebug(true)
+	sink.Logger.Debug().Msg("kept after SetDebug")
+
+	lines := sink.Ring.RecentLines()
+	if containsLine(lines, "dropped before SetDebug") {
+		t.Error("a debug line logged before SetDebug(true) should have been dropped")
+	}
+	if !containsLine(lines, "kept after SetDebug") {
+		t.Error("a debug line logged after SetDebug(true) should have been kept")
+	}
+}
+
+func containsLine(lines []string, substr string) bool {
+	for _, l := range lines {
+		if strings.Contains(l, substr) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestLogDir_CreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("APPDATA", dir)

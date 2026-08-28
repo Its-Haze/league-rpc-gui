@@ -17,14 +17,61 @@ Backend and startup wiring are done; the frontend and release pipeline are not.
 - [x] 09 In-app update client and UI
 - [ ] 10 Release pipeline and update signing
 - [x] 11 Frontend shell: navigation, top strip, theme
-- [ ] 12 Frontend: Display screen
-- [ ] 13 Frontend: Behavior screen
-- [ ] 14 Frontend: Advanced screen
-- [ ] 15 Frontend: Home dashboard and first-run onboarding
-- [ ] 16 Frontend: Help and About
+- [x] 12 Frontend: Display screen
+- [x] 13 Frontend: Behavior screen
+- [x] 14 Frontend: Advanced screen
+- [x] 15 Frontend: Home dashboard and first-run onboarding
+- [x] 16 Frontend: Help and About
 - [ ] 17 Docs and GitHub issue templates
 - [x] 18 Per-mode display override leaks into idle and post-game presence (follow-up to 06)
 - [x] 19 GameModes() can silently drift from the GameMode const block (follow-up to 06)
+
+A `/code-review high` pass after 12-16 landed found: a schema-v2 install missing
+`OnboardingComplete` would replay the walkthrough (migration only triggered on
+`schema_version < CurrentSchemaVersion`, which was already 2); every settings screen's own
+`useSettings()` call held an independent stale snapshot, so one screen's write could clobber
+another's; the custom Discord App ID field couldn't be cleared to retype; the interval fields
+snapped to their bound mid-keystroke; and a mojibake character leaked into a preview and a test
+fixture. All fixed: `CurrentSchemaVersion` bumped to 3 with a `migrateV2ToV3` step,
+`useSettings`/`useStatus` rebuilt on `useSyncExternalStore` over module-level shared state, the
+App ID field keyed off `string | null` instead of a falsy-string fallback, interval fields
+commit on blur/Enter instead of every keystroke, and the stray bytes replaced.
+
+A follow-up `/code-review medium` pass (run twice; the first was interrupted) found further
+issues, real this time despite the note above: the mojibake fix had missed one file
+(`AdvancedScreen.tsx`'s loading text and interval hint); `useSettings().applyPatch` rethrew a
+handled error into ~19 fire-and-forget call sites with no `.catch`, an unhandled-rejection
+regression from the App.tsx-owned version; its failure path reverted the shared config snapshot
+to a stale pre-patch copy, which could clobber a different screen's already-successful write;
+`useSettings`/`useStatus`/`usePresets` triplicated the same module-store boilerplate; the show
+rank/stats patch logic was duplicated verbatim between the Display screen and the onboarding
+walkthrough; `displayOverride.ts` shipped two tested-but-uncalled functions; a hand-rolled
+`contains` reimplemented `strings.Contains`; a test fixture's `schema_version` hadn't been
+bumped alongside the real one; several comments were silently truncated below a complete
+sentence by the comment-cap hook; and three fields (the custom App ID, the idle-status text, the
+per-context template editors) wrote to disk and/or round-tripped `RenderTemplatePreview` on
+every keystroke. All fixed: `strings.Contains` in place of the hand-rolled version; a shared
+`createExternalStore` factory behind all three hooks; `applyPatch` no longer rethrows and
+recovers via a fresh `GetSettings()` instead of the stale snapshot; `lib/displayPatch.ts`
+extracted (mirroring `lib/behaviorPatch.ts`) and used by both the Display screen and the
+walkthrough; the dead functions removed; the test fixture's schema version corrected; every
+truncated comment rewritten to fit and finish within the 2-line cap; a new `GetConfigBounds`
+binding replaces the Advanced screen's hand-duplicated interval bounds; `watchConfigField[T]`
+replaces the near-identical `reconcileStartupOnChange`/`reconcileDebugOnChange` goroutines with
+one generic watcher; and a `DebouncedTextField` primitive plus a debounced template-editor draft
+now commit text fields ~400ms after typing stops instead of per keystroke. A real timer leak in
+`PresencePreview` (an uncleared 30s `setTimeout` calling `setState` after unmount) and a
+per-log-line array-copy-and-rerender cost in the Help screen's log viewer (now batched via a
+100ms flush) were fixed alongside these.
+
+Post-review, direct user feedback on the running app: fixed the Advanced screen's preset
+`<Select>` snapping back to the previous preset's name the instant "Custom" was picked while the
+app id still matched that preset (`resolveSelectValue`, ticket 14); added a Discord/GitHub footer
+to the sidebar; replaced the OS-default scrollbar with a thin theme-matched one; removed
+"Test presence" end to end as unwanted (ticket 15's story 15 and the `App.TestPresence()`
+decision above are superseded); and added a "how do I get a custom Application ID" walkthrough
+plus best-effort name resolution via Discord's public API for the custom Application ID field,
+also shown on Home's presence card (ticket 14, `internal/discordapp`).
 
 ## Problem Statement
 

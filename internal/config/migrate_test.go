@@ -60,11 +60,57 @@ func TestLoad_MigratesFlatFileAndWritesItBack(t *testing.T) {
 	if got.Theme != ThemeSystem {
 		t.Errorf("Theme = %q, want default %q", got.Theme, ThemeSystem)
 	}
+	if !got.OnboardingComplete {
+		t.Error("a migrated install should not see the first-run walkthrough again")
+	}
 
 	// The upgraded file is on disk: reloading takes the non-migration path.
 	raw, _ := os.ReadFile(path)
 	if schemaVersionOf(raw) != CurrentSchemaVersion {
 		t.Fatalf("file was not written back with a schema version: %s", raw)
+	}
+}
+
+// A file written by the build that introduced schema v2 but not yet
+// OnboardingComplete must not replay the walkthrough for an existing install.
+func TestLoad_MigratesV2FileMissingOnboardingComplete(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("APPDATA", dir)
+
+	path, _ := GetConfigPath()
+	if err := os.MkdirAll(dirOf(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	v2Fixture := `{
+	  "schema_version": 2,
+	  "discord_app_id": "999",
+	  "theme": "dark",
+	  "display": {"default": {"show_rank": true, "show_stats": true}, "modes": {}},
+	  "presence": {"show_emojis": true, "show_in_client": true, "idle": "", "templates": {}},
+	  "behavior": {"launch_at_startup": false, "auto_launch_league": false, "league_path": ""},
+	  "advanced": {"update_interval": 1500, "stats_polling_interval": 3000, "debug_mode": false}
+	}`
+	if err := os.WriteFile(path, []byte(v2Fixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("SchemaVersion = %d, want %d", got.SchemaVersion, CurrentSchemaVersion)
+	}
+	if !got.OnboardingComplete {
+		t.Error("a v2 install missing onboarding_complete should not see the walkthrough again")
+	}
+	if got.DiscordAppID != "999" || got.Theme != ThemeDark {
+		t.Errorf("v2 fields did not survive the upgrade: %+v", got)
+	}
+
+	raw, _ := os.ReadFile(path)
+	if schemaVersionOf(raw) != CurrentSchemaVersion {
+		t.Fatalf("file was not written back at the current schema version: %s", raw)
 	}
 }
 

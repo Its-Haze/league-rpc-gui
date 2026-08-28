@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/its-haze/league-rpc/internal/config"
@@ -218,10 +219,113 @@ func TestApp_RenderTemplatePreview_EmptyMapUsesSampleData(t *testing.T) {
 	}
 }
 
+func TestApp_GetDisplayPreview_ShowsStatsWhenEnabled(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, true)
+	if err != nil {
+		t.Fatalf("GetDisplayPreview: %v", err)
+	}
+	if got.State == "" || !strings.Contains(got.State, "3/2/5") {
+		t.Fatalf("State = %q, want the sample KDA included", got.State)
+	}
+}
+
+func TestApp_GetDisplayPreview_HidesStatsWhenDisabled(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	got, err := a.GetDisplayPreview("in-game", config.TemplatePair{}, false)
+	if err != nil {
+		t.Fatalf("GetDisplayPreview: %v", err)
+	}
+	if strings.Contains(got.State, "3/2/5") {
+		t.Fatalf("State = %q, stats should be hidden", got.State)
+	}
+}
+
+func TestApp_GetDisplayPreview_RejectsUnknownContext(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+	if _, err := a.GetDisplayPreview("bogus", config.TemplatePair{}, true); err == nil {
+		t.Fatal("accepted an unknown presence context")
+	}
+}
+
+func TestApp_GetPreviewAssets_ReturnsNonEmptyURLs(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	got := a.GetPreviewAssets()
+	if got.ChampionSkinURL == "" || got.RankEmblemURL == "" || got.LeagueLogoURL == "" {
+		t.Fatalf("GetPreviewAssets() = %+v, want every URL populated", got)
+	}
+}
+
+func TestApp_GetTemplateTokens(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	got := a.GetTemplateTokens("in-client")
+	want := []string{"emoji", "availability"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("GetTemplateTokens(in-client) = %v, want %v", got, want)
+	}
+	if got := a.GetTemplateTokens("bogus"); got != nil {
+		t.Errorf("GetTemplateTokens(bogus) = %v, want nil", got)
+	}
+}
+
+func TestApp_GetConfigBounds_MatchesConfigPackage(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+
+	want := ConfigBounds{
+		UpdateIntervalMin:       config.MinUpdateInterval,
+		UpdateIntervalMax:       config.MaxUpdateInterval,
+		StatsPollingIntervalMin: config.MinStatsPollingInterval,
+		StatsPollingIntervalMax: config.MaxStatsPollingInterval,
+	}
+	if got := a.GetConfigBounds(); got != want {
+		t.Errorf("GetConfigBounds() = %+v, want %+v", got, want)
+	}
+}
+
 func TestApp_GetPresetsNonEmpty(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
 	if len(a.GetPresets()) == 0 {
 		t.Fatal("GetPresets returned nothing")
+	}
+}
+
+type fakeAppLookup struct {
+	name string
+	err  error
+}
+
+func (f *fakeAppLookup) Name(context.Context, string) (string, error) { return f.name, f.err }
+
+func TestApp_GetApplicationName_NilLookupErrors(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
+	if _, err := a.GetApplicationName(context.Background(), "123"); err == nil {
+		t.Fatal("GetApplicationName without WithAppNameLookup should error")
+	}
+}
+
+func TestApp_GetApplicationName_DelegatesToLookup(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{},
+		WithAppNameLookup(&fakeAppLookup{name: "Jungle diff"}))
+
+	got, err := a.GetApplicationName(context.Background(), "123")
+	if err != nil {
+		t.Fatalf("GetApplicationName: %v", err)
+	}
+	if got != "Jungle diff" {
+		t.Errorf("GetApplicationName() = %q, want %q", got, "Jungle diff")
+	}
+}
+
+func TestApp_GetApplicationName_PropagatesLookupError(t *testing.T) {
+	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{},
+		WithAppNameLookup(&fakeAppLookup{err: errors.New("not found")}))
+
+	if _, err := a.GetApplicationName(context.Background(), "bogus"); err == nil {
+		t.Fatal("GetApplicationName did not propagate the lookup error")
 	}
 }
 

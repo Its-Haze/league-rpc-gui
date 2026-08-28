@@ -8,15 +8,15 @@ import (
 )
 
 // CurrentSchemaVersion is the version stamped on every config the app writes.
-// A file with a lower (or missing) version is migrated on Load.
-const CurrentSchemaVersion = 2
+const CurrentSchemaVersion = 3
 
 // Config is the versioned settings tree. It is persisted as JSON and edited
 // through the GUI; nothing reads settings from CLI flags.
 type Config struct {
-	SchemaVersion int    `json:"schema_version"`
-	DiscordAppID  string `json:"discord_app_id"`
-	Theme         string `json:"theme"` // system | light | dark
+	SchemaVersion      int    `json:"schema_version"`
+	DiscordAppID       string `json:"discord_app_id"`
+	Theme              string `json:"theme"`               // system | light | dark
+	OnboardingComplete bool   `json:"onboarding_complete"` // first-run walkthrough finished
 
 	Display  DisplayConfig  `json:"display"`
 	Presence PresenceConfig `json:"presence"`
@@ -92,9 +92,10 @@ type AdvancedConfig struct {
 // DefaultConfig returns a fully populated tree at the current schema version.
 func DefaultConfig() *Config {
 	return &Config{
-		SchemaVersion: CurrentSchemaVersion,
-		DiscordAppID:  "1237146703111393281", // TEMP dev app ID; real one is 1194034071588851783
-		Theme:         ThemeSystem,
+		SchemaVersion:      CurrentSchemaVersion,
+		DiscordAppID:       "1237146703111393281", // TEMP dev app ID; real one is 1194034071588851783
+		Theme:              ThemeSystem,
+		OnboardingComplete: false,
 		Display: DisplayConfig{
 			Default: DisplayDefaults{ShowRank: true, ShowStats: true},
 			Modes:   map[string]ModeOverride{},

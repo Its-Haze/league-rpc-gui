@@ -4,11 +4,20 @@
 
 **Blocked by:** 11, 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] "Start with Windows" toggle writes `Behavior.LaunchAtStartup` and triggers an immediate registry reconcile
-- [ ] Tray-behavior explainer text is present and accurate
-- [ ] `Presence.ShowInClient` and `Idle` controls bound to the config tree
-- [ ] "Check for updates" button calls the ticket-09 manual-check binding and shows the result
-- [ ] Channel shown as stable, with no beta option for v1
-- [ ] Vitest: toggle state and the reconcile call with a mocked binding
+- [x] "Start with Windows" toggle writes `Behavior.LaunchAtStartup` and triggers an immediate registry reconcile
+- [x] Tray-behavior explainer text is present and accurate
+- [x] `Presence.ShowInClient` and `Idle` controls bound to the config tree
+- [x] "Check for updates" button calls the ticket-09 manual-check binding and shows the result
+- [x] Channel shown as stable, with no beta option for v1
+- [x] Vitest: toggle state and the reconcile call with a mocked binding
+
+**Notes:** The "immediate registry reconcile" is the daemon's own
+`reconcileStartupOnChange` goroutine (`cmd/league-rpc-gui/main.go`), which was already watching
+`config.Store` for `Behavior.LaunchAtStartup` flips since ticket 07; the toggle here just calls
+`ApplySettings` like every other field and the reconcile follows automatically, so no new
+binding was needed. `withLaunchAtStartup`/`withShowInClient`/`withIdleText` in
+`lib/behaviorPatch.ts` are the patch builders Vitest exercises, kept separate from the component
+so the "reconcile call" (really: the patch shape `ApplySettings` receives) is testable without
+mounting React or mocking the Wails runtime.

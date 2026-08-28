@@ -1,12 +1,30 @@
-import type { ReactNode } from "react";
+import { useSettings } from "../../hooks/useSettings";
+import { useStatus } from "../../hooks/useStatus";
+import { OnboardingWalkthrough } from "./home/OnboardingWalkthrough";
+import { PresencePreview } from "./home/PresencePreview";
+import { StatusDashboard } from "./home/StatusDashboard";
 
-// Placeholder host for the Home dashboard. The onboarding/status content
-// itself lands in ticket 15; for now it hosts what App.tsx already had.
-export function HomeScreen({ children }: { children?: ReactNode }) {
+// The Home dashboard: live status, the last-sent presence preview, and the
+// first-run walkthrough while onboarding_complete is still false.
+export function HomeScreen() {
+  const { cfg, applyPatch } = useSettings();
+  const status = useStatus();
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Home</h1>
-      {children}
+
+      {cfg && !cfg.onboarding_complete && (
+        <OnboardingWalkthrough
+          cfg={cfg}
+          status={status}
+          applyPatch={applyPatch}
+          onDismiss={() => void applyPatch({ onboarding_complete: true })}
+        />
+      )}
+
+      <StatusDashboard status={status} />
+      <PresencePreview status={status} />
     </div>
   );
 }

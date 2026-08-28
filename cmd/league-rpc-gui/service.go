@@ -20,6 +20,9 @@ const statusChangedEvent = "status:changed"
 // App Update coordinator's launch or periodic check finds something new.
 const updateChangedEvent = "update:changed"
 
+// logLineEvent carries one new log line to the frontend as it is written.
+const logLineEvent = "log:line"
+
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
@@ -48,20 +51,31 @@ func (s *guiService) GetPresets() map[string]string {
 	return s.app.GetPresets()
 }
 
+// GetApplicationName resolves appID to its public Discord Application name.
+func (s *guiService) GetApplicationName(ctx context.Context, appID string) (string, error) {
+	return s.app.GetApplicationName(ctx, appID)
+}
+
 // RenderTemplatePreview renders a presence template pair for ctx against sample
 // data so the settings screen can preview an edit before it is saved.
 func (s *guiService) RenderTemplatePreview(ctx string, tmpl config.TemplatePair, sample map[string]string) (app.TemplatePreview, error) {
 	return s.app.RenderTemplatePreview(ctx, tmpl, sample)
 }
 
+// GetDisplayPreview renders ctx's template with showStats honored, for the
+// Display screen's live preview of the current settings.
+func (s *guiService) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats bool) (app.TemplatePreview, error) {
+	return s.app.GetDisplayPreview(ctx, tmpl, showStats)
+}
+
+// GetPreviewAssets returns sample image URLs for the Display screen's preview.
+func (s *guiService) GetPreviewAssets() app.PreviewAssets {
+	return s.app.GetPreviewAssets()
+}
+
 // GetStatus returns the current status snapshot for the frontend.
 func (s *guiService) GetStatus() app.StatusSnapshot {
 	return s.app.GetStatus()
-}
-
-// TestPresence shows a fixed sample presence in Discord for a few seconds.
-func (s *guiService) TestPresence() {
-	s.app.TestPresence()
 }
 
 // SetPaused toggles the runtime pause flag from the frontend.
@@ -109,6 +123,37 @@ func (s *guiService) GetChangelog(ctx context.Context) string {
 	return s.app.GetChangelog(ctx)
 }
 
+// GetGameModes returns every GameMode the Display screen can show a per-mode
+// override row for.
+func (s *guiService) GetGameModes() []string {
+	return s.app.GetGameModes()
+}
+
+// GetConfigBounds returns the numeric bounds the Advanced screen clamps to.
+func (s *guiService) GetConfigBounds() app.ConfigBounds {
+	return s.app.GetConfigBounds()
+}
+
+// GetTemplateTokens returns the {token} names valid for ctx.
+func (s *guiService) GetTemplateTokens(ctx string) []string {
+	return s.app.GetTemplateTokens(ctx)
+}
+
+// GetRecentLogs returns the buffered log lines, oldest first.
+func (s *guiService) GetRecentLogs() []string {
+	return s.app.GetRecentLogs()
+}
+
+// OpenLogsFolder opens the logs directory in Explorer.
+func (s *guiService) OpenLogsFolder() error {
+	return s.app.OpenLogsFolder()
+}
+
+// GetDiagnostics returns a paste-ready Markdown block for bug reports.
+func (s *guiService) GetDiagnostics() string {
+	return s.app.GetDiagnostics()
+}
+
 // publishConfigChanges forwards every config.Store update to the frontend as
 // a Wails event until ctx is canceled.
 func (s *guiService) publishConfigChanges(ctx context.Context, wailsApp *application.App) {
@@ -122,6 +167,26 @@ func (s *guiService) publishConfigChanges(ctx context.Context, wailsApp *applica
 				return
 			}
 			wailsApp.Event.Emit(configChangedEvent, cfg)
+		}
+	}
+}
+
+// publishLogLines forwards every new log line to the frontend as a Wails
+// event until ctx is canceled. No-op if logging was never wired.
+func (s *guiService) publishLogLines(ctx context.Context, wailsApp *application.App) {
+	lines := s.app.SubscribeLogs()
+	if lines == nil {
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case line, ok := <-lines:
+			if !ok {
+				return
+			}
+			wailsApp.Event.Emit(logLineEvent, line)
 		}
 	}
 }
