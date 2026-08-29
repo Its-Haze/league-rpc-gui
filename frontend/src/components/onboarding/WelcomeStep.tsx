@@ -1,5 +1,5 @@
 import { DiscordIcon, GitHubIcon } from "../icons";
-import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL } from "../../lib/links";
+import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL, openExternal } from "../../lib/links";
 import { Button } from "../ui";
 
 // Onboarding's first screen: what the app does, and the same GitHub/Discord
@@ -20,13 +20,25 @@ export function WelcomeStep() {
       </ul>
       <div className="flex items-center justify-center gap-3">
         <Button variant="secondary" asChild>
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
+          <a
+            href={GITHUB_REPO_URL}
+            onClick={(e) => {
+              e.preventDefault();
+              openExternal(GITHUB_REPO_URL);
+            }}
+          >
             <GitHubIcon className="size-4" />
             Star on GitHub
           </a>
         </Button>
         <Button variant="secondary" asChild>
-          <a href={DISCORD_COMMUNITY_URL} target="_blank" rel="noreferrer">
+          <a
+            href={DISCORD_COMMUNITY_URL}
+            onClick={(e) => {
+              e.preventDefault();
+              openExternal(DISCORD_COMMUNITY_URL);
+            }}
+          >
             <DiscordIcon className="size-4" />
             Join the Discord
           </a>

@@ -5,6 +5,7 @@ import {
   GetVersion,
 } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import { useCheckForUpdates } from "../../hooks/useCheckForUpdates";
+import { handleExternalLinkClick } from "../../lib/links";
 import { renderMarkdown } from "../../lib/markdown";
 import { Button } from "../ui";
 import UpdateBanner from "../UpdateBanner";
@@ -41,6 +42,7 @@ export function AboutScreen() {
         <h2 className="mb-2 text-sm font-semibold">Changelog</h2>
         <div
           className="prose prose-sm max-w-none text-sm"
+          onClick={handleExternalLinkClick}
           dangerouslySetInnerHTML={{
             __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog…")),
           }}

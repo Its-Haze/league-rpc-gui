@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { DiscordIcon, GitHubIcon } from "../icons";
-import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL } from "../../lib/links";
+import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL, openExternal } from "../../lib/links";
 import { SECTIONS, type Section } from "../../lib/route";
 import { THEME_OPTIONS, type ThemeSetting } from "../../lib/theme";
 import { Select } from "../ui";
@@ -72,8 +72,10 @@ function SidebarLink({ href, icon, children }: { href: string; icon: ReactNode; 
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      onClick={(e) => {
+        e.preventDefault();
+        openExternal(href);
+      }}
       className="text-muted hover:bg-surface-raised hover:text-text flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium transition-colors"
     >
       {icon}

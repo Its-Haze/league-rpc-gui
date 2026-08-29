@@ -1,3 +1,5 @@
+import { Bug, MessageSquarePlus } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   GetDiagnostics,
@@ -5,7 +7,8 @@ import {
 } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import { useSettings } from "../../hooks/useSettings";
 import { formatDiagnostics } from "../../lib/diagnostics";
-import { BUG_REPORT_URL, DISCORD_COMMUNITY_URL, FEATURE_REQUEST_URL } from "../../lib/links";
+import { BUG_REPORT_URL, DISCORD_COMMUNITY_URL, FEATURE_REQUEST_URL, openExternal } from "../../lib/links";
+import { DiscordIcon } from "../icons";
 import { Button } from "../ui";
 import { LogViewer } from "./help/LogViewer";
 
@@ -56,17 +59,17 @@ export function HelpScreen() {
         {copyResult && <p className="text-muted text-xs">{copyResult}</p>}
       </section>
 
-      <section className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-6">
+      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
         <h2 className="text-sm font-semibold">Get help</h2>
-        <a href={DISCORD_COMMUNITY_URL} target="_blank" rel="noreferrer" className="text-accent text-sm underline">
+        <HelpLink href={DISCORD_COMMUNITY_URL} icon={<DiscordIcon className="size-4" />}>
           Join the Discord community
-        </a>
-        <a href={BUG_REPORT_URL} target="_blank" rel="noreferrer" className="text-accent text-sm underline">
+        </HelpLink>
+        <HelpLink href={BUG_REPORT_URL} icon={<Bug className="size-4" />}>
           Report a bug
-        </a>
-        <a href={FEATURE_REQUEST_URL} target="_blank" rel="noreferrer" className="text-accent text-sm underline">
+        </HelpLink>
+        <HelpLink href={FEATURE_REQUEST_URL} icon={<MessageSquarePlus className="size-4" />}>
           Request a feature
-        </a>
+        </HelpLink>
       </section>
 
       {cfg && (
@@ -81,5 +84,23 @@ export function HelpScreen() {
         </section>
       )}
     </div>
+  );
+}
+
+// Mirrors the sidebar footer's link treatment (icon + label, hover row) so
+// external links look consistent across the app.
+function HelpLink({ href, icon, children }: { href: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        openExternal(href);
+      }}
+      className="text-muted hover:bg-surface-raised hover:text-text -mx-3 flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium transition-colors"
+    >
+      {icon}
+      {children}
+    </a>
   );
 }

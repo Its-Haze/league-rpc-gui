@@ -12,7 +12,7 @@ import {
   resolveSelectValue,
   type Bounds,
 } from "../../lib/advancedBounds";
-import { DISCORD_DEVELOPER_PORTAL_URL } from "../../lib/links";
+import { DISCORD_DEVELOPER_PORTAL_URL, openExternal } from "../../lib/links";
 import { DebouncedTextField, Field, Select, Toggle } from "../ui";
 
 // The Advanced section: Discord App ID (preset or custom), the two tuning
@@ -175,7 +175,14 @@ function CustomAppIdTutorial() {
       <ol className="mt-2 list-decimal space-y-1 pl-4">
         <li>
           Open the{" "}
-          <a href={DISCORD_DEVELOPER_PORTAL_URL} target="_blank" rel="noreferrer" className="text-accent underline">
+          <a
+            href={DISCORD_DEVELOPER_PORTAL_URL}
+            onClick={(e) => {
+              e.preventDefault();
+              openExternal(DISCORD_DEVELOPER_PORTAL_URL);
+            }}
+            className="text-accent underline"
+          >
             Discord Developer Portal
           </a>{" "}
           and sign in with your Discord account.

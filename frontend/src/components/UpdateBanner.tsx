@@ -9,6 +9,7 @@ import {
   StartUpdate,
 } from "../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import type { UpdateStatus } from "../../bindings/github.com/its-haze/league-rpc/internal/app/models";
+import { handleExternalLinkClick } from "../lib/links";
 import { renderMarkdown } from "../lib/markdown";
 
 // Event names the Wails updater emits directly on the same event bus as our
@@ -146,6 +147,7 @@ export default function UpdateBanner() {
       {showChangelog && (
         <div
           className="border-border prose prose-sm max-w-none border-t pt-3"
+          onClick={handleExternalLinkClick}
           dangerouslySetInnerHTML={{
             __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog…")),
           }}
