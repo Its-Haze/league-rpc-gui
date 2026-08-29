@@ -14,3 +14,7 @@ export function withShowStats(cfg: Config, enabled: boolean): Partial<Config> {
 export function withShowEmojis(cfg: Config, enabled: boolean): Partial<Config> {
   return { presence: { ...cfg.presence, show_emojis: enabled } };
 }
+
+export function withShowInClient(cfg: Config, enabled: boolean): Partial<Config> {
+  return { presence: { ...cfg.presence, show_in_client: enabled } };
+}

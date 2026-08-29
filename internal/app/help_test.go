@@ -9,18 +9,6 @@ import (
 	"github.com/its-haze/league-rpc/internal/logging"
 )
 
-func TestApp_GetGameModes_MatchesTypesPackage(t *testing.T) {
-	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
-
-	got := a.GetGameModes()
-	if len(got) == 0 {
-		t.Fatal("GetGameModes returned nothing")
-	}
-	if got[0] != "CLASSIC" {
-		t.Errorf("GetGameModes()[0] = %q, want %q", got[0], "CLASSIC")
-	}
-}
-
 func TestApp_Logs_NilRingDegradesGracefully(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
 

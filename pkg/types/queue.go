@@ -1,7 +1,5 @@
 package types
 
-import "slices"
-
 // QueueID represents different League of Legends queue types
 type QueueID int
 
@@ -25,25 +23,6 @@ const (
 	GameModeSwarm             GameMode = "STRAWBERRY"
 	GameModeBrawl             GameMode = "BRAWL"
 )
-
-// GameModes returns every game mode the app recognizes. It is the single
-// source for the per-mode settings UI and override resolution.
-func GameModes() []GameMode {
-	return []GameMode{
-		GameModeClassic,
-		GameModeARAM,
-		GameModeTFT,
-		GameModeArena,
-		GameModeUltimateSpellbook,
-		GameModeSwarm,
-		GameModeBrawl,
-	}
-}
-
-// ValidGameMode reports whether m is one of the recognized game modes.
-func ValidGameMode(m GameMode) bool {
-	return slices.Contains(GameModes(), m)
-}
 
 // MapID represents different League of Legends maps
 type MapID int

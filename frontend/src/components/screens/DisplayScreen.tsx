@@ -1,40 +1,19 @@
-import { useEffect, useState } from "react";
-import { GetGameModes } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
-import type { ModeOverride, TemplatePair } from "../../../bindings/github.com/its-haze/league-rpc/internal/config/models";
+import type { TemplatePair } from "../../../bindings/github.com/its-haze/league-rpc/internal/config/models";
 import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
-import { withShowEmojis, withShowRank, withShowStats } from "../../lib/displayPatch";
-import { PRESENCE_CONTEXTS } from "../../lib/presenceContexts";
-import { Field, Toggle } from "../ui";
-import { ModeOverrideRow } from "./display/ModeOverrideRow";
+import { withShowEmojis, withShowInClient, withShowRank, withShowStats } from "../../lib/displayPatch";
+import { PRESENCE_CONTEXT_LABELS, PRESENCE_CONTEXTS } from "../../lib/presenceContexts";
+import { Field, Tabs, Toggle } from "../ui";
 import { TemplateEditor } from "./display/TemplateEditor";
 
-// The Display section: global toggles, per-GameMode overrides, and the
-// per-context presence template editors.
+// The Display section: global toggles, and one tab per presence context so
+// the four text editors don't all show at once.
 export function DisplayScreen() {
   const { cfg, error, applyPatch } = useSettings();
   const defaults = useDefaultConfig();
-  const [modes, setModes] = useState<string[]>([]);
-  const [modesOpen, setModesOpen] = useState(false);
-
-  useEffect(() => {
-    GetGameModes()
-      .then((m) => setModes(m ?? []))
-      .catch(() => {});
-  }, []);
 
   if (!cfg) {
     return <p className="text-muted text-sm">Loading settings…</p>;
-  }
-
-  function setModeOverride(mode: string, next: ModeOverride | undefined) {
-    const modesMap = { ...cfg!.display.modes };
-    if (next) {
-      modesMap[mode] = next;
-    } else {
-      delete modesMap[mode];
-    }
-    void applyPatch({ display: { ...cfg!.display, modes: modesMap } });
   }
 
   function setTemplate(ctx: string, next: TemplatePair) {
@@ -91,52 +70,45 @@ export function DisplayScreen() {
             label="Show status emojis"
           />
         </Field>
-      </section>
-
-      <section className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-6">
-        <button
-          onClick={() => setModesOpen((v) => !v)}
-          className="flex items-center justify-between text-left text-sm font-semibold"
+        <Field
+          id="show-in-client"
+          label="Show presence while in client"
+          hint="Idle in the League client, not in a game"
+          onReset={defaults ? () => void applyPatch(withShowInClient(cfg, defaults.presence.show_in_client)) : undefined}
+          isDefault={!defaults || cfg.presence.show_in_client === defaults.presence.show_in_client}
         >
-          <span>Per-mode overrides</span>
-          <span className="text-muted">{modesOpen ? "▾" : "▸"}</span>
-        </button>
-        {modesOpen && (
-          <div className="flex flex-col">
-            {modes.length === 0 ? (
-              <p className="text-muted text-sm">Loading game modes…</p>
-            ) : (
-              modes.map((mode) => (
-                <ModeOverrideRow
-                  key={mode}
-                  mode={mode}
-                  def={cfg.display.default}
-                  override={cfg.display.modes?.[mode]}
-                  onChange={(next) => setModeOverride(mode, next)}
-                />
-              ))
-            )}
-          </div>
-        )}
+          <Toggle
+            id="show-in-client"
+            checked={cfg.presence.show_in_client}
+            onCheckedChange={(v) => void applyPatch(withShowInClient(cfg, v))}
+            label="Show presence while in client"
+          />
+        </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="border-border bg-surface flex flex-col gap-3 rounded-lg border p-6">
         <h2 className="text-sm font-semibold">Presence text</h2>
-        {PRESENCE_CONTEXTS.map((ctx) => {
-          const pair = cfg.presence.templates?.[ctx] ?? { details: "", state: "" };
-          return (
-            <TemplateEditor
-              key={ctx}
-              ctx={ctx}
-              value={pair}
-              onChange={(next) => setTemplate(ctx, next)}
-              showRank={cfg.display.default.show_rank}
-              showStats={cfg.display.default.show_stats}
-              showEmojis={cfg.presence.show_emojis}
-              defaultValue={defaults?.presence.templates?.[ctx]}
-            />
-          );
-        })}
+        <Tabs
+          defaultValue={PRESENCE_CONTEXTS[0]}
+          items={PRESENCE_CONTEXTS.map((ctx) => {
+            const pair = cfg.presence.templates?.[ctx] ?? { details: "", state: "" };
+            return {
+              value: ctx,
+              label: PRESENCE_CONTEXT_LABELS[ctx],
+              content: (
+                <TemplateEditor
+                  ctx={ctx}
+                  value={pair}
+                  onChange={(next) => setTemplate(ctx, next)}
+                  showRank={cfg.display.default.show_rank}
+                  showStats={cfg.display.default.show_stats}
+                  showEmojis={cfg.presence.show_emojis}
+                  defaultValue={defaults?.presence.templates?.[ctx]}
+                />
+              ),
+            };
+          })}
+        />
       </section>
     </div>
   );

@@ -10,12 +10,10 @@ export function DefaultConfig(): Config {
     onboarding_complete: false,
     display: {
       default: { show_rank: true, show_stats: true },
-      modes: {},
     },
     presence: {
       show_emojis: true,
       show_in_client: true,
-      idle: "",
       templates: {
         "in-client": { details: "{emoji}  {availability}", state: "In Client" },
         "champ-select": { details: "{queue}", state: "In Champ Select" },
@@ -27,6 +25,7 @@ export function DefaultConfig(): Config {
       launch_at_startup: false,
       auto_launch_league: false,
       league_path: "",
+      close_action: "ask",
     },
     advanced: {
       update_interval: 1500,

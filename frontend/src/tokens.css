@@ -33,6 +33,8 @@
   --text-xl: 1.5rem;
 }
 
+/* Dark accent and danger sit lighter than their light-theme counterparts: they
+   carry near-black button text, which needs a bright ground to stay crisp. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --color-bg: #12141c;
@@ -41,11 +43,11 @@
     --color-border: #2b2f3c;
     --color-text: #e8eaf0;
     --color-text-muted: #9198a8;
-    --color-accent: #5b8cff;
+    --color-accent: #7aa4ff;
     --color-accent-text: #06101f;
     --color-ok: #3fb873;
     --color-warn: #e0983f;
-    --color-danger: #e0616b;
+    --color-danger: #ef8189;
     --color-danger-text: #1a0507;
   }
 }
@@ -57,10 +59,10 @@
   --color-border: #2b2f3c;
   --color-text: #e8eaf0;
   --color-text-muted: #9198a8;
-  --color-accent: #5b8cff;
+  --color-accent: #7aa4ff;
   --color-accent-text: #06101f;
   --color-ok: #3fb873;
   --color-warn: #e0983f;
-  --color-danger: #e0616b;
+  --color-danger: #ef8189;
   --color-danger-text: #1a0507;
 }

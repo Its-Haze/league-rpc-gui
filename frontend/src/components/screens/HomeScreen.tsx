@@ -2,10 +2,10 @@ import { useSettings } from "../../hooks/useSettings";
 import { useStatus } from "../../hooks/useStatus";
 import { OnboardingWalkthrough } from "./home/OnboardingWalkthrough";
 import { PresencePreview } from "./home/PresencePreview";
-import { StatusDashboard } from "./home/StatusDashboard";
+import { Welcome } from "./home/Welcome";
 
-// The Home dashboard: live status, the last-sent presence preview, and the
-// first-run walkthrough while onboarding_complete is still false.
+// The Home dashboard: a plain-language introduction, the first-run walkthrough,
+// and the last-sent presence preview. No connection wiring here.
 export function HomeScreen() {
   const { cfg, applyPatch } = useSettings();
   const status = useStatus();
@@ -23,7 +23,7 @@ export function HomeScreen() {
         />
       )}
 
-      <StatusDashboard status={status} />
+      <Welcome />
       <PresencePreview status={status} />
     </div>
   );

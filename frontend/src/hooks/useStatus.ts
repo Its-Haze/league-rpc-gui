@@ -5,7 +5,7 @@ import { createExternalStore } from "./createExternalStore";
 
 const STATUS_CHANGED_EVENT = "status:changed";
 
-// Shared across every screen: the top strip and Home are mounted at once, so
+// Shared across screens (Behavior's pause toggle, Home's onboarding step), so
 // a per-call fetch+listener would mean duplicate round trips for the same data.
 const store = createExternalStore<StatusSnapshot | null>(null, () => {
   GetStatus()

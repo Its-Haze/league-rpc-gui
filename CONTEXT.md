@@ -44,7 +44,7 @@ The League client's own display language (e.g. `en_US`), read by inspecting the 
 _Avoid_: language, config.Locale
 
 **Daemon**:
-The long-running background process itself, launched at Windows startup or manually. It lives in the system tray and keeps running until it crashes or the user explicitly quits it from the tray. Opening/closing the GUI window only shows/hides it; it never starts or stops the daemon. See [ADR-0002](./docs/adr/0002-daemon-never-exits-on-connection-loss.md).
+The long-running background process itself, launched at Windows startup or manually. It lives in the system tray and keeps running until it crashes or the user explicitly quits it, from the tray or through the `Close Action`. Opening the GUI window never starts or stops it. See [ADR-0002](./docs/adr/0002-daemon-never-exits-on-connection-loss.md).
 _Avoid_: app, process, service
 
 **Connection Supervisor**:
@@ -52,11 +52,15 @@ The component that owns retrying a connection (to Discord, or to the LCU) foreve
 _Avoid_: reconnect logic, watchdog
 
 **GUI**:
-The Wails-hosted settings-and-status window. It runs in the same process as the Daemon, not a separate one: closing it hides the window and leaves the Daemon running; there is no GUI-to-Daemon IPC. See [ADR-0004](./docs/adr/0004-gui-process-hosts-the-daemon.md).
+The Wails-hosted settings-and-status window. It runs in the same process as the Daemon, not a separate one; there is no GUI-to-Daemon IPC. See [ADR-0004](./docs/adr/0004-gui-process-hosts-the-daemon.md).
 _Avoid_: frontend (for the process), app
 
+**Close Action**:
+What the window's close button does, held in `Config` as `behavior.close_action`. `ask` raises an in-app confirmation, `tray` hides the window silently, `quit` stops the Daemon. Closing the window never ends the Daemon under `ask` or `tray`.
+_Avoid_: close behavior, exit mode
+
 **Tray**:
-The system-tray icon the Daemon owns. Left-click shows the `GUI`. Right-click menu is `Open`, `Pause presence`, `Quit`. Only `Quit` stops the Daemon; everything else only affects the window or presence.
+The system-tray icon the Daemon owns. Left-click shows the `GUI`. Right-click menu is `Open`, `Pause presence`, `Quit`. Apart from `Quit` and a `quit` `Close Action`, nothing stops the Daemon.
 
 **Pause**:
 A runtime-only flag, never written to `Config`. While paused, Discord presence is cleared immediately, the same as League not running. It resets to unpaused whenever the Daemon restarts, so a forgotten pause can't outlive a session.
@@ -68,9 +72,6 @@ _Avoid_: autostart, Task Scheduler (it is not used)
 **Presence Template**:
 A user-editable `details` and `state` string pair, one pair per context: in-client, champ select, in-game, spectating (the `Watching` phase). Templates use plain `{token}` substitution, no logic. One Go engine renders them for real sends and for the `GUI` preview; there is no second implementation. A token with no data at send time resolves to empty and surrounding whitespace and separators collapse.
 _Avoid_: format string, text/template (it is not Go's template package)
-
-**Mode Override**:
-An optional per-`GameMode` override of the global "show rank" / "show stats" defaults. The unit is the `GameMode` display concept (League Classic, ARAM, Arena, ...), never a queue ID: Solo and Flex share one override. No other display setting is per-mode.
 
 **Status Snapshot**:
 The read model the `GUI` renders: the three connection states (League process, LCU, Discord), the current `GameFlowPhase`, and the presence the `Updater` last sent. Assembled from `State` and the supervisors' accessors and pushed to the `GUI` on change. The preview is always the last-sent presence, never a recomputation, so it cannot drift from what Discord actually shows.

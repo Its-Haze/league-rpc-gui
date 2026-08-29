@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { DiscordIcon, GitHubIcon } from "../icons";
 import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL } from "../../lib/links";
 import { SECTIONS, type Section } from "../../lib/route";
+import { THEME_OPTIONS, type ThemeSetting } from "../../lib/theme";
+import { Select } from "../ui";
 
 const LABELS: Record<Section, string> = {
   home: "Home",
@@ -15,10 +17,15 @@ const LABELS: Record<Section, string> = {
 export interface SidebarProps {
   active: Section;
   onNavigate: (section: Section) => void;
+  theme: string;
+  onThemeChange: (theme: ThemeSetting) => void;
+  /** True until the initial settings load resolves, so the picker can't fire on a config that isn't there yet. */
+  themeDisabled?: boolean;
 }
 
-// Left nav across the six sections. The active item is a filled row, no
-export function Sidebar({ active, onNavigate }: SidebarProps) {
+// Left nav across the six sections, plus the theme picker: the one setting
+// worth reaching from anywhere, so it lives outside any single screen.
+export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisabled }: SidebarProps) {
   return (
     <nav className="border-border bg-surface flex w-44 shrink-0 flex-col border-r p-3">
       <div className="flex flex-1 flex-col gap-1">
@@ -42,13 +49,20 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
         })}
       </div>
 
-      <div className="border-border flex flex-col gap-1 border-t pt-2">
+      <div className="border-border flex flex-col gap-2 border-t pt-2">
         <SidebarLink href={DISCORD_COMMUNITY_URL} icon={<DiscordIcon className="size-4" />}>
           Discord
         </SidebarLink>
         <SidebarLink href={GITHUB_REPO_URL} icon={<GitHubIcon className="size-4" />}>
           GitHub
         </SidebarLink>
+        <Select
+          value={theme}
+          onValueChange={(v) => onThemeChange(v as ThemeSetting)}
+          options={THEME_OPTIONS}
+          disabled={themeDisabled}
+          aria-label="Theme"
+        />
       </div>
     </nav>
   );

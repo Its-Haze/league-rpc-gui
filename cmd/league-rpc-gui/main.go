@@ -149,23 +149,24 @@ func main() {
 		Hidden:           startHidden,
 		BackgroundColour: application.NewRGB(15, 17, 23),
 		URL:              "/",
+		// Custom chrome (frontend/src/components/shell/TitleBar.tsx) replaces
+		// the native titlebar, so the window carries no OS decorations.
+		Frameless: true,
 	})
 
-	tray := newTrayController(
-		windowAdapter{mainWindow},
-		d,
-		func() {
-			wailsApp.Dialog.Info().
-				SetTitle("League RPC is still running").
-				SetMessage("Closing the window keeps presence running in the background. Right-click the tray icon and choose Quit to stop it.").
-				Show()
-		},
-	)
+	tray := newTrayController(windowAdapter{mainWindow}, d)
+	tray.closeAction = func() string { return store.Load().Behavior.CloseAction }
+	tray.quit = wailsApp.Quit
+	tray.askClose = func() {
+		mainWindow.Show() // a close from the taskbar can arrive minimized
+		wailsApp.Event.Emit(closeRequestedEvent)
+	}
 
-	// Close the window -> hide it, keep the daemon running. Only tray Quit exits.
+	// Every close is cancelled and re-decided by the tray controller, so the
+	// window only ever goes away by hiding or by a real quit.
 	mainWindow.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		tray.handleClose()
 		e.Cancel()
+		tray.handleClose()
 	})
 
 	systemTray := wailsApp.SystemTray.New()
@@ -181,6 +182,7 @@ func main() {
 	// Frontend pause toggles flow through the same path as tray toggles, so
 	// the daemon flag and the tray checkbox stay in agreement.
 	svc.pauseHook = tray.setPaused
+	svc.closeHook = tray.resolveClose
 
 	if err := wailsApp.Run(); err != nil {
 		log.Fatal(err)

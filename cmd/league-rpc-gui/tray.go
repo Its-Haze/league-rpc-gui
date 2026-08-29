@@ -1,6 +1,6 @@
 package main
 
-import "sync"
+import "github.com/its-haze/league-rpc/internal/config"
 
 // windowController is the subset of the Wails window the tray drives. An
 // adapter over *application.WebviewWindow satisfies it; tests use a fake.
@@ -18,17 +18,21 @@ type pauseControl interface {
 
 // trayController holds the window and pause wiring behind the tray menu,
 type trayController struct {
-	win        windowController
-	pause      pauseControl
-	firstHide  sync.Once
-	notifyHide func()
+	win   windowController
+	pause pauseControl
+	// closeAction reads the live config.CloseAction setting.
+	closeAction func() string
+	// askClose tells the frontend to raise the close confirmation dialog.
+	askClose func()
+	// quit shuts the whole app down, the same as tray Quit.
+	quit func()
 	// reflectChecked mirrors the pause flag onto the tray menu checkbox.
 	// Set by the Wails wiring once the menu item exists.
 	reflectChecked func(bool)
 }
 
-func newTrayController(win windowController, pause pauseControl, notifyHide func()) *trayController {
-	return &trayController{win: win, pause: pause, notifyHide: notifyHide}
+func newTrayController(win windowController, pause pauseControl) *trayController {
+	return &trayController{win: win, pause: pause}
 }
 
 // showWindow brings the window back and focuses it. Used by the tray icon
@@ -38,15 +42,45 @@ func (c *trayController) showWindow() {
 	c.win.Focus()
 }
 
-// handleClose redirects a window close to a hide so the app keeps running.
-// The first time it fires it also shows the "still running" message once.
+// handleClose routes a window close through the user's close_action setting.
+// Under "ask" the window stays up so the in-app dialog has something to sit on.
 func (c *trayController) handleClose() {
-	c.win.Hide()
-	c.firstHide.Do(func() {
-		if c.notifyHide != nil {
-			c.notifyHide()
+	switch c.action() {
+	case config.CloseQuit:
+		c.doQuit()
+	case config.CloseTray:
+		c.win.Hide()
+	default:
+		if c.askClose == nil {
+			c.win.Hide() // no frontend to ask; hiding is the safe default
+			return
 		}
-	})
+		c.askClose()
+	}
+}
+
+// resolveClose applies the answer the close dialog came back with. Remembering
+// the choice is the frontend's job: it writes close_action before calling in.
+func (c *trayController) resolveClose(action string) {
+	if action == config.CloseQuit {
+		c.doQuit()
+		return
+	}
+	c.win.Hide()
+}
+
+// action reads the configured close behavior, defaulting to asking.
+func (c *trayController) action() string {
+	if c.closeAction == nil {
+		return config.CloseAsk
+	}
+	return c.closeAction()
+}
+
+func (c *trayController) doQuit() {
+	if c.quit != nil {
+		c.quit()
+	}
 }
 
 // setPaused is the one place pause changes flow through, so the daemon flag

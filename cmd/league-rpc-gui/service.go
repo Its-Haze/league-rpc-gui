@@ -23,12 +23,18 @@ const updateChangedEvent = "update:changed"
 // logLineEvent carries one new log line to the frontend as it is written.
 const logLineEvent = "log:line"
 
+// closeRequestedEvent asks the frontend to raise the close confirmation
+// dialog. Only emitted while close_action is "ask".
+const closeRequestedEvent = "window:close-requested"
+
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
 	// pauseHook, when set, handles pause changes so the tray checkbox stays
 	// in sync. Nil until the tray is wired; falls back to app then.
 	pauseHook func(bool)
+	// closeHook applies the close dialog's answer. Nil until the tray is wired.
+	closeHook func(string)
 }
 
 func newGUIService(a *app.App) *guiService {
@@ -93,6 +99,14 @@ func (s *guiService) SetPaused(paused bool) {
 	s.app.SetPaused(paused)
 }
 
+// ResolveClose applies the close dialog's answer: config.CloseQuit exits,
+// anything else hides to the tray.
+func (s *guiService) ResolveClose(action string) {
+	if s.closeHook != nil {
+		s.closeHook(action)
+	}
+}
+
 // IsPaused reports the runtime pause flag to the frontend.
 func (s *guiService) IsPaused() bool {
 	return s.app.IsPaused()
@@ -127,12 +141,6 @@ func (s *guiService) RestartForUpdate(ctx context.Context) error {
 // placeholder when GitHub can't be reached.
 func (s *guiService) GetChangelog(ctx context.Context) string {
 	return s.app.GetChangelog(ctx)
-}
-
-// GetGameModes returns every GameMode the Display screen can show a per-mode
-// override row for.
-func (s *guiService) GetGameModes() []string {
-	return s.app.GetGameModes()
 }
 
 // GetConfigBounds returns the numeric bounds the Advanced screen clamps to.

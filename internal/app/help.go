@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/its-haze/league-rpc/internal/logging"
-	"github.com/its-haze/league-rpc/pkg/types"
 )
 
 // WithLogs wires the in-memory log ring and the logs directory so the Help
@@ -51,16 +50,6 @@ func defaultOpenFolder(path string) error {
 		return fmt.Errorf("open folder is not supported on %s", runtime.GOOS)
 	}
 	return exec.Command("explorer", path).Start()
-}
-
-// GetGameModes returns every GameMode the Display screen can show a row for.
-func (a *App) GetGameModes() []string {
-	modes := types.GameModes()
-	out := make([]string, len(modes))
-	for i, m := range modes {
-		out[i] = string(m)
-	}
-	return out
 }
 
 // GetDiagnostics returns a paste-ready Markdown block for bug reports: app

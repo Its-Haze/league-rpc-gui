@@ -120,7 +120,6 @@ func TestLoad_V2FileRoundTrips(t *testing.T) {
 	orig := DefaultConfig()
 	orig.Theme = ThemeDark
 	orig.Display.Default.ShowRank = false
-	orig.Display.Modes["ARENA"] = ModeOverride{}
 	if err := Save(orig); err != nil {
 		t.Fatalf("Save: %v", err)
 	}

@@ -1,15 +1,48 @@
+import { useEffect, useState } from "react";
+import {
+  GetStatus,
+  SetPaused,
+} from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import { useCheckForUpdates } from "../../hooks/useCheckForUpdates";
 import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
-import { withIdleText, withLaunchAtStartup, withShowInClient } from "../../lib/behaviorPatch";
-import { DebouncedTextField, Field, Toggle } from "../ui";
+import { useStatus } from "../../hooks/useStatus";
+import { withCloseAction, withLaunchAtStartup, type CloseAction } from "../../lib/behaviorPatch";
+import { Field, Select, Toggle, type SelectOption } from "../ui";
 
-// The Behavior section: start-with-Windows, the tray explainer, in-client
-// and idle presence, and the update-check controls.
+const CLOSE_ACTIONS: SelectOption[] = [
+  { value: "ask", label: "Ask me every time" },
+  { value: "tray", label: "Hide to tray" },
+  { value: "quit", label: "Quit League RPC" },
+];
+
+// The Behavior section: pausing presence, start-with-Windows and what closing
+// the window does, and the update-check controls.
 export function BehaviorScreen() {
   const { cfg, error, applyPatch } = useSettings();
   const defaults = useDefaultConfig();
   const { checking, result: checkResult, check: handleCheck } = useCheckForUpdates();
+  const status = useStatus();
+  const [paused, setPaused] = useState(false);
+
+  // Local override wins until the daemon's own status:changed catches up, so
+  // the toggle reflects the click immediately rather than the next broadcast.
+  useEffect(() => {
+    if (status) setPaused(status.paused);
+  }, [status?.paused]);
+
+  async function togglePaused(next: boolean) {
+    setPaused(next);
+    try {
+      await SetPaused(next);
+    } catch {
+      // Re-sync from the daemon rather than assuming !next: a status:changed
+      // broadcast may have already landed while this call was in flight.
+      GetStatus()
+        .then((s) => setPaused(s.paused))
+        .catch(() => setPaused(!next));
+    }
+  }
 
   if (!cfg) {
     return <p className="text-muted text-sm">Loading settings…</p>;
@@ -19,6 +52,21 @@ export function BehaviorScreen() {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Behavior</h1>
       {error && <p className="text-danger text-sm">{error}</p>}
+
+      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
+        <Field
+          id="pause-presence"
+          label="Pause presence"
+          hint="Clears your Discord status immediately, resumes on next launch"
+        >
+          <Toggle
+            id="pause-presence"
+            checked={paused}
+            onCheckedChange={togglePaused}
+            label="Pause presence"
+          />
+        </Field>
+      </section>
 
       <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
         <Field
@@ -35,39 +83,18 @@ export function BehaviorScreen() {
             label="Start with Windows"
           />
         </Field>
-        <p className="text-muted text-xs">
-          Closing the window hides League RPC to the system tray; presence keeps running. Right-click
-          the tray icon and choose Quit to stop it fully.
-        </p>
-      </section>
-
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
         <Field
-          id="show-in-client"
-          label="Show presence while in client"
-          hint="Idle in the League client, not in a game"
-          onReset={defaults ? () => void applyPatch(withShowInClient(cfg, defaults.presence.show_in_client)) : undefined}
-          isDefault={!defaults || cfg.presence.show_in_client === defaults.presence.show_in_client}
+          id="close-action"
+          label="When I close the window"
+          hint="Hiding keeps presence running; reopen from the tray icon"
+          onReset={defaults ? () => void applyPatch(withCloseAction(cfg, defaults.behavior.close_action as CloseAction)) : undefined}
+          isDefault={!defaults || cfg.behavior.close_action === defaults.behavior.close_action}
         >
-          <Toggle
-            id="show-in-client"
-            checked={cfg.presence.show_in_client}
-            onCheckedChange={(v) => void applyPatch(withShowInClient(cfg, v))}
-            label="Show presence while in client"
-          />
-        </Field>
-        <Field
-          id="idle-text"
-          label="Idle status text"
-          hint="Empty uses the built-in text"
-          onReset={defaults ? () => void applyPatch(withIdleText(cfg, defaults.presence.idle)) : undefined}
-          isDefault={!defaults || cfg.presence.idle === defaults.presence.idle}
-        >
-          <DebouncedTextField
-            id="idle-text"
-            value={cfg.presence.idle}
-            onCommit={(v) => void applyPatch(withIdleText(cfg, v))}
-            className="border-border bg-surface-raised text-text rounded-sm border px-3 py-1.5 text-sm"
+          <Select
+            aria-label="When I close the window"
+            value={cfg.behavior.close_action}
+            onValueChange={(v) => void applyPatch(withCloseAction(cfg, v as CloseAction))}
+            options={CLOSE_ACTIONS}
           />
         </Field>
       </section>

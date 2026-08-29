@@ -24,47 +24,21 @@ type Config struct {
 	Advanced AdvancedConfig `json:"advanced"`
 }
 
-// DisplayConfig holds what presence shows, with per-GameMode overrides layered
-// on top of the global defaults.
+// DisplayConfig holds what presence shows.
 type DisplayConfig struct {
-	Default DisplayDefaults         `json:"default"`
-	Modes   map[string]ModeOverride `json:"modes"`
+	Default DisplayDefaults `json:"default"`
 }
 
-// DisplayDefaults is the global on/off state for the two per-mode-overridable
-// toggles.
+// DisplayDefaults is the global on/off state for the two display toggles.
 type DisplayDefaults struct {
 	ShowRank  bool `json:"show_rank"`  // rank emblem and LP
 	ShowStats bool `json:"show_stats"` // KDA and creep score
-}
-
-// ModeOverride is a per-GameMode override. A nil field means "inherit the
-// default"; a non-nil field means the user set it explicitly, false included.
-type ModeOverride struct {
-	ShowRank  *bool `json:"show_rank,omitempty"`
-	ShowStats *bool `json:"show_stats,omitempty"`
-}
-
-// Resolve returns the effective toggles for mode, falling back to the default
-// for any field the mode does not override.
-func (d DisplayConfig) Resolve(mode string) DisplayDefaults {
-	out := d.Default
-	if ov, ok := d.Modes[mode]; ok {
-		if ov.ShowRank != nil {
-			out.ShowRank = *ov.ShowRank
-		}
-		if ov.ShowStats != nil {
-			out.ShowStats = *ov.ShowStats
-		}
-	}
-	return out
 }
 
 // PresenceConfig holds presence-wide text settings.
 type PresenceConfig struct {
 	ShowEmojis   bool                    `json:"show_emojis"`    // online/away emoji
 	ShowInClient bool                    `json:"show_in_client"` // presence while idle in client
-	Idle         string                  `json:"idle"`           // idle status override; empty uses the built-in
 	Templates    map[string]TemplatePair `json:"templates"`      // per-context text, keyed by context
 }
 
@@ -80,6 +54,7 @@ type BehaviorConfig struct {
 	LaunchAtStartup  bool   `json:"launch_at_startup"`  // start with Windows
 	AutoLaunchLeague bool   `json:"auto_launch_league"` // launch League when the app starts
 	LeaguePath       string `json:"league_path"`        // custom League install path; empty auto-detects
+	CloseAction      string `json:"close_action"`       // ask | tray | quit
 }
 
 // AdvancedConfig holds tuning knobs and debug options.
@@ -98,18 +73,17 @@ func DefaultConfig() *Config {
 		OnboardingComplete: false,
 		Display: DisplayConfig{
 			Default: DisplayDefaults{ShowRank: true, ShowStats: true},
-			Modes:   map[string]ModeOverride{},
 		},
 		Presence: PresenceConfig{
 			ShowEmojis:   true,
 			ShowInClient: true,
-			Idle:         "",
 			Templates:    defaultTemplates(),
 		},
 		Behavior: BehaviorConfig{
 			LaunchAtStartup:  false,
 			AutoLaunchLeague: false,
 			LeaguePath:       "",
+			CloseAction:      CloseAsk,
 		},
 		Advanced: AdvancedConfig{
 			UpdateInterval:       1500,
@@ -150,6 +124,18 @@ func validTheme(t string) bool {
 	return t == ThemeSystem || t == ThemeLight || t == ThemeDark
 }
 
+// What closing the window does. CloseAsk shows the in-app confirmation; the
+// other two skip it once the user has picked "remember my choice".
+const (
+	CloseAsk  = "ask"
+	CloseTray = "tray"
+	CloseQuit = "quit"
+)
+
+func validCloseAction(a string) bool {
+	return a == CloseAsk || a == CloseTray || a == CloseQuit
+}
+
 // Validate reports every problem with c without changing it. Store.Apply and
 // Save call this and surface the error; the GUI shows it next to the field.
 func (c *Config) Validate() error {
@@ -160,6 +146,9 @@ func (c *Config) Validate() error {
 	}
 	if !validTheme(c.Theme) {
 		errs = append(errs, fmt.Errorf("theme must be one of %q, %q, %q", ThemeSystem, ThemeLight, ThemeDark))
+	}
+	if !validCloseAction(c.Behavior.CloseAction) {
+		errs = append(errs, fmt.Errorf("close_action must be one of %q, %q, %q", CloseAsk, CloseTray, CloseQuit))
 	}
 	if c.Advanced.UpdateInterval < MinUpdateInterval || c.Advanced.UpdateInterval > MaxUpdateInterval {
 		errs = append(errs, fmt.Errorf("update_interval must be between %d and %d ms", MinUpdateInterval, MaxUpdateInterval))
@@ -182,6 +171,11 @@ func (c *Config) clamp() {
 	if !validTheme(c.Theme) {
 		c.Theme = def.Theme
 	}
+	// Also the upgrade path: a config written before this field existed has it
+	// empty and lands on the default rather than failing to load.
+	if !validCloseAction(c.Behavior.CloseAction) {
+		c.Behavior.CloseAction = def.Behavior.CloseAction
+	}
 	if c.Advanced.UpdateInterval < MinUpdateInterval || c.Advanced.UpdateInterval > MaxUpdateInterval {
 		c.Advanced.UpdateInterval = def.Advanced.UpdateInterval
 	}
@@ -190,9 +184,6 @@ func (c *Config) clamp() {
 	}
 	if c.Advanced.StatsPollingInterval > MaxStatsPollingInterval {
 		c.Advanced.StatsPollingInterval = MaxStatsPollingInterval
-	}
-	if c.Display.Modes == nil {
-		c.Display.Modes = map[string]ModeOverride{}
 	}
 	if c.Presence.Templates == nil {
 		c.Presence.Templates = map[string]TemplatePair{}

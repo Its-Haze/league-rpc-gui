@@ -316,6 +316,8 @@ type PreviewAssets struct {
 	ChampionSkinURL string `json:"champion_skin_url"`
 	RankEmblemURL   string `json:"rank_emblem_url"`
 	LeagueLogoURL   string `json:"league_logo_url"`
+	ProfileIconURL  string `json:"profile_icon_url"`
+	MapIconURL      string `json:"map_icon_url"`
 }
 
 // GetPreviewAssets returns those sample image URLs.
@@ -324,6 +326,8 @@ func (a *App) GetPreviewAssets() PreviewAssets {
 		ChampionSkinURL: discord.GetChampionSkinURL("Chogath", 1),
 		RankEmblemURL:   discord.GetRankEmblemURL(types.TierGold),
 		LeagueLogoURL:   discord.GetLeagueLogoURL(),
+		ProfileIconURL:  discord.GetProfileIconURL(29),
+		MapIconURL:      discord.GetMapIconURL(types.MapSummonersRift),
 	}
 }
 

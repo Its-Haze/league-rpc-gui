@@ -7,10 +7,9 @@ export function withLaunchAtStartup(cfg: Config, enabled: boolean): Partial<Conf
   return { behavior: { ...cfg.behavior, launch_at_startup: enabled } };
 }
 
-export function withShowInClient(cfg: Config, enabled: boolean): Partial<Config> {
-  return { presence: { ...cfg.presence, show_in_client: enabled } };
-}
+/** What the window's close button does. Mirrors config.Close* in Go. */
+export type CloseAction = "ask" | "tray" | "quit";
 
-export function withIdleText(cfg: Config, idle: string): Partial<Config> {
-  return { presence: { ...cfg.presence, idle } };
+export function withCloseAction(cfg: Config, action: CloseAction): Partial<Config> {
+  return { behavior: { ...cfg.behavior, close_action: action } };
 }

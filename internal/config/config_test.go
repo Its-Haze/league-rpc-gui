@@ -40,6 +40,7 @@ func TestValidate_ReportsEveryProblemAtOnce(t *testing.T) {
 	c := DefaultConfig()
 	c.DiscordAppID = ""
 	c.Theme = "neon"
+	c.Behavior.CloseAction = "explode"
 	c.Advanced.UpdateInterval = 10
 	c.Advanced.StatsPollingInterval = 999999
 
@@ -47,7 +48,7 @@ func TestValidate_ReportsEveryProblemAtOnce(t *testing.T) {
 	if err == nil {
 		t.Fatal("Validate accepted an invalid config")
 	}
-	for _, want := range []string{"discord_app_id", "theme", "update_interval", "stats_polling_interval"} {
+	for _, want := range []string{"discord_app_id", "theme", "close_action", "update_interval", "stats_polling_interval"} {
 		if !contains(err.Error(), want) {
 			t.Errorf("error %q missing mention of %q", err, want)
 		}
@@ -90,38 +91,22 @@ func TestClamp_RepairsOutOfBounds(t *testing.T) {
 	if c.Theme != ThemeSystem {
 		t.Errorf("Theme = %q, want %q", c.Theme, ThemeSystem)
 	}
+	// A file written before close_action existed has it empty; asking is the
+	// only safe repair, since quitting silently would surprise the user.
+	if c.Behavior.CloseAction != CloseAsk {
+		t.Errorf("CloseAction = %q, want %q", c.Behavior.CloseAction, CloseAsk)
+	}
 	if c.Advanced.UpdateInterval != DefaultConfig().Advanced.UpdateInterval {
 		t.Errorf("UpdateInterval = %d, want default", c.Advanced.UpdateInterval)
 	}
 	if c.Advanced.StatsPollingInterval != MinStatsPollingInterval {
 		t.Errorf("StatsPollingInterval = %d, want %d", c.Advanced.StatsPollingInterval, MinStatsPollingInterval)
 	}
-	if c.Display.Modes == nil || c.Presence.Templates == nil {
+	if c.Presence.Templates == nil {
 		t.Error("clamp left nested maps nil")
 	}
 	if err := c.Validate(); err != nil {
 		t.Fatalf("config still invalid after clamp: %v", err)
-	}
-}
-
-func TestDisplayConfig_Resolve(t *testing.T) {
-	f := false
-	d := DisplayConfig{
-		Default: DisplayDefaults{ShowRank: true, ShowStats: true},
-		Modes: map[string]ModeOverride{
-			"ARENA": {ShowRank: &f},
-		},
-	}
-
-	if got := d.Resolve("CLASSIC"); !got.ShowRank || !got.ShowStats {
-		t.Errorf("unknown mode should inherit default, got %+v", got)
-	}
-	got := d.Resolve("ARENA")
-	if got.ShowRank {
-		t.Error("ARENA override of ShowRank=false was not applied")
-	}
-	if !got.ShowStats {
-		t.Error("ARENA should still inherit ShowStats=true")
 	}
 }
 

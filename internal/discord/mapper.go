@@ -13,12 +13,6 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		return &RPCData{}
 	}
 
-	// Per-mode overrides only apply while a game or lobby for that mode is live.
-	// Idle and post-game keep a stale GameMode, so they use Display.Default.
-	if cfg != nil && perModeDisplayApplies(st.GameFlowPhase) {
-		cfg = withResolvedDisplay(st.GameMode, cfg)
-	}
-
 	// Route to appropriate builder based on game flow phase
 	switch st.GameFlowPhase {
 	case types.GameFlowInProgress:
@@ -64,32 +58,6 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		// Unknown phase - default to in client
 		return BuildInClientPresence(st, cfg)
 	}
-}
-
-// perModeDisplayApplies reports whether per-mode display overrides should be
-// resolved for phase. Idle and post-game carry a stale GameMode, so they don't.
-func perModeDisplayApplies(phase types.GameFlowPhase) bool {
-	return !phase.IsInClient()
-}
-
-// resolveDisplay returns the effective ShowRank/ShowStats for mode: its
-// Display.Modes override when mode is known, otherwise Display.Default.
-func resolveDisplay(cfg *config.Config, mode types.GameMode) (showRank, showStats bool) {
-	def := cfg.Display.Default
-	if !types.ValidGameMode(mode) {
-		return def.ShowRank, def.ShowStats
-	}
-	r := cfg.Display.Resolve(string(mode))
-	return r.ShowRank, r.ShowStats
-}
-
-// withResolvedDisplay returns a shallow copy of cfg whose Display.Default holds
-// the per-mode-resolved toggles, so presence builders need no override logic.
-func withResolvedDisplay(mode types.GameMode, cfg *config.Config) *config.Config {
-	showRank, showStats := resolveDisplay(cfg, mode)
-	resolved := *cfg
-	resolved.Display.Default = config.DisplayDefaults{ShowRank: showRank, ShowStats: showStats}
-	return &resolved
 }
 
 // ShouldClearPresence returns true if presence should be cleared instead of updated
