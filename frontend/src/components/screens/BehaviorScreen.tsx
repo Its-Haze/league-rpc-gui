@@ -72,7 +72,7 @@ export function BehaviorScreen() {
         <Field
           id="launch-at-startup"
           label="Start with Windows"
-          hint="Launches hidden to the tray at logon"
+          hint="Launches minimized to the tray"
           onReset={defaults ? () => void applyPatch(withLaunchAtStartup(cfg, defaults.behavior.launch_at_startup)) : undefined}
           isDefault={!defaults || cfg.behavior.launch_at_startup === defaults.behavior.launch_at_startup}
         >
@@ -86,7 +86,7 @@ export function BehaviorScreen() {
         <Field
           id="close-action"
           label="When I close the window"
-          hint="Hiding keeps presence running; reopen from the tray icon"
+          hint="Hiding keeps presence running. Reopen from the tray icon"
           onReset={defaults ? () => void applyPatch(withCloseAction(cfg, defaults.behavior.close_action as CloseAction)) : undefined}
           isDefault={!defaults || cfg.behavior.close_action === defaults.behavior.close_action}
         >

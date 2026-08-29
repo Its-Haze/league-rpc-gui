@@ -80,7 +80,7 @@ func DefaultConfig() *Config {
 			Templates:    defaultTemplates(),
 		},
 		Behavior: BehaviorConfig{
-			LaunchAtStartup:  false,
+			LaunchAtStartup:  true,
 			AutoLaunchLeague: false,
 			LeaguePath:       "",
 			CloseAction:      CloseAsk,

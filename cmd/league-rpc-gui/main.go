@@ -144,8 +144,8 @@ func main() {
 
 	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "League RPC",
-		Width:            960,
-		Height:           640,
+		Width:            1040,
+		Height:           700,
 		Hidden:           startHidden,
 		BackgroundColour: application.NewRGB(15, 17, 23),
 		URL:              "/",

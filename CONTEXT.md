@@ -76,6 +76,10 @@ _Avoid_: format string, text/template (it is not Go's template package)
 **Status Snapshot**:
 The read model the `GUI` renders: the three connection states (League process, LCU, Discord), the current `GameFlowPhase`, and the presence the `Updater` last sent. Assembled from `State` and the supervisors' accessors and pushed to the `GUI` on change. The preview is always the last-sent presence, never a recomputation, so it cannot drift from what Discord actually shows.
 
+**Onboarding**:
+The full-screen flow shown in place of the normal `GUI` (sidebar and sections) until `Config`'s `onboarding_complete` is set. Cannot be skipped or dismissed early; the only way through is completing every screen, though it can be replayed later by clearing the flag from the GUI's help section. Four screens: an intro, a settings screen for `show_rank`/`show_stats`/`show_emojis` shown beside fixed, hardcoded demo presence cards, a start-with-Windows recommendation, and a closing screen. The demo presence cards are fabricated display data, not a `Status Snapshot`: unlike the Status Snapshot preview, they are not derived from anything ever sent to Discord, because no real presence may exist yet on first launch.
+_Avoid_: walkthrough, first-run wizard, tour
+
 **App Update**:
 The in-app self-update flow: check GitHub Releases, download the new binary, verify its ed25519 signature against the `SHA256SUMS` sidecar, swap it, restart. Distinct from `Updater`, which is only about Discord presence sends. Downloads happen on user click, never silently in the background. See [ADR-0005](./docs/adr/0005-in-app-update-via-signed-binary-swap.md).
 _Avoid_: Updater, upgrader

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { useCloseRequest } from "../../hooks/useCloseRequest";
 import { useRoute } from "../../hooks/useRoute";
+import { useSettings } from "../../hooks/useSettings";
 import type { ThemeSetting } from "../../lib/theme";
+import { OnboardingFlow } from "../onboarding/OnboardingFlow";
 import { CloseConfirmDialog } from "./CloseConfirmDialog";
 import { Sidebar } from "./Sidebar";
 import { TitleBar } from "./TitleBar";
@@ -24,33 +26,39 @@ export interface AppShellProps {
 export function AppShell({ theme, onThemeChange, themeDisabled, error }: AppShellProps) {
   const { section, navigate } = useRoute();
   const closeRequest = useCloseRequest();
+  const { cfg, applyPatch } = useSettings();
+  const onboarding = cfg && !cfg.onboarding_complete;
 
   return (
     <div className="flex h-full flex-col">
       <CloseConfirmDialog open={closeRequest.pending} onDismiss={closeRequest.dismiss} />
       <TitleBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          active={section}
-          onNavigate={navigate}
-          theme={theme}
-          onThemeChange={onThemeChange}
-          themeDisabled={themeDisabled}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          {error && (
-            <div className="border-danger text-danger border-b px-6 py-2 text-sm">{error}</div>
-          )}
-          <main className="min-w-0 flex-1 overflow-y-auto p-6">
-            {section === "home" && <HomeScreen />}
-            {section === "display" && <DisplayScreen />}
-            {section === "behavior" && <BehaviorScreen />}
-            {section === "advanced" && <AdvancedScreen />}
-            {section === "help" && <HelpScreen />}
-            {section === "about" && <AboutScreen />}
-          </main>
+      {onboarding ? (
+        <OnboardingFlow cfg={cfg} applyPatch={applyPatch} />
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <Sidebar
+            active={section}
+            onNavigate={navigate}
+            theme={theme}
+            onThemeChange={onThemeChange}
+            themeDisabled={themeDisabled}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            {error && (
+              <div className="border-danger text-danger border-b px-6 py-2 text-sm">{error}</div>
+            )}
+            <main className="min-w-0 flex-1 overflow-y-auto p-6">
+              {section === "home" && <HomeScreen />}
+              {section === "display" && <DisplayScreen />}
+              {section === "behavior" && <BehaviorScreen />}
+              {section === "advanced" && <AdvancedScreen />}
+              {section === "help" && <HelpScreen />}
+              {section === "about" && <AboutScreen />}
+            </main>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

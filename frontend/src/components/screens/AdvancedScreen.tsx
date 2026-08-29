@@ -122,7 +122,7 @@ export function AdvancedScreen() {
           <h2 className="text-sm font-semibold">Update speed</h2>
           <p className="text-muted text-xs">
             How often League RPC checks for changes and refreshes your Discord status. Faster
-            feels more live; slower is lighter on your PC.
+            feels more live. Slower is lighter on your PC.
           </p>
         </div>
         <IntervalSlider

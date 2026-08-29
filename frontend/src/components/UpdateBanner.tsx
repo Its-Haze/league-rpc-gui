@@ -12,7 +12,7 @@ import type { UpdateStatus } from "../../bindings/github.com/its-haze/league-rpc
 import { renderMarkdown } from "../lib/markdown";
 
 // Event names the Wails updater emits directly on the same event bus as our
-// own "update:changed" — see internal/updates and pkg/updater/events.go.
+// own "update:changed". See internal/updates and pkg/updater/events.go.
 const EVENT_CHANGED = "update:changed";
 const EVENT_DOWNLOAD_PROGRESS = "wails:updater:download-progress";
 const EVENT_UPDATE_READY = "wails:updater:update-ready";

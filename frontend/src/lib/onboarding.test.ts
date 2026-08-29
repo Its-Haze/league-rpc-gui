@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ONBOARDING_STEPS,
-  connectStepReady,
-  initialOnboarding,
-  isFirstStep,
-  isLastStep,
-  onboardingReducer,
-} from "./onboarding";
+import { ONBOARDING_STEPS, initialOnboarding, isFirstStep, isLastStep, onboardingReducer } from "./onboarding";
 
 describe("onboardingReducer", () => {
   it("starts on the first step", () => {
@@ -36,8 +29,8 @@ describe("onboardingReducer", () => {
   });
 
   it("jumps directly to a step", () => {
-    expect(onboardingReducer(initialOnboarding, { type: "goto", step: "startup" })).toEqual({
-      step: "startup",
+    expect(onboardingReducer(initialOnboarding, { type: "goto", step: "cta" })).toEqual({
+      step: "cta",
     });
   });
 
@@ -55,14 +48,5 @@ describe("isFirstStep / isLastStep", () => {
     const last = ONBOARDING_STEPS[ONBOARDING_STEPS.length - 1];
     expect(isFirstStep(last)).toBe(false);
     expect(isLastStep(last)).toBe(true);
-  });
-});
-
-describe("connectStepReady", () => {
-  it("needs both Discord and League before it is ready", () => {
-    expect(connectStepReady(false, false)).toBe(false);
-    expect(connectStepReady(true, false)).toBe(false);
-    expect(connectStepReady(false, true)).toBe(false);
-    expect(connectStepReady(true, true)).toBe(true);
   });
 });

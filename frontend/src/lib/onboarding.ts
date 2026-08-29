@@ -1,6 +1,6 @@
-// The first-run walkthrough's steps, in display order. Rendered inline, not
-// as a modal; the user can revisit an earlier step at any time.
-export const ONBOARDING_STEPS = ["welcome", "connect", "display", "startup"] as const;
+// The first-run flow's screens, in display order. Rendered full-screen, in
+// place of the whole app shell, until the flag is cleared.
+export const ONBOARDING_STEPS = ["welcome", "settings", "startup", "cta"] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
@@ -42,10 +42,4 @@ export function isLastStep(step: OnboardingStep): boolean {
 
 export function isFirstStep(step: OnboardingStep): boolean {
   return indexOf(step) === 0;
-}
-
-// The "connect" step's two live checkmarks: both need to be true before it
-// makes sense to nudge the user toward "next".
-export function connectStepReady(discordConnected: boolean, leagueDetected: boolean): boolean {
-  return discordConnected && leagueDetected;
 }

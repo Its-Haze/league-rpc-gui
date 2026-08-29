@@ -320,13 +320,16 @@ type PreviewAssets struct {
 	MapIconURL      string `json:"map_icon_url"`
 }
 
+// Giftwrapped Poro (Snowdown 2013), used as the sample profile icon below.
+const previewProfileIconID = 588
+
 // GetPreviewAssets returns those sample image URLs.
 func (a *App) GetPreviewAssets() PreviewAssets {
 	return PreviewAssets{
 		ChampionSkinURL: discord.GetChampionSkinURL("Chogath", 1),
 		RankEmblemURL:   discord.GetRankEmblemURL(types.TierGold),
 		LeagueLogoURL:   discord.GetLeagueLogoURL(),
-		ProfileIconURL:  discord.GetProfileIconURL(29),
+		ProfileIconURL:  discord.GetProfileIconURL(previewProfileIconID),
 		MapIconURL:      discord.GetMapIconURL(types.MapSummonersRift),
 	}
 }
