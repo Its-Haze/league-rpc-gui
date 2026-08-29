@@ -18,6 +18,7 @@
 - [x] Install and uninstall both abort with a Retry/Cancel prompt while the app is running, detected through the single-instance mutex
 - [x] Uninstall deletes the `HKCU\...\Run` value `LeagueRPC`; settings and logs survive
 - [x] Release publishes the installer alongside the binary, both covered by `SHA256SUMS`; `cmd/sign-release` takes a repeatable `-artifact`
+- [x] Install and uninstall verified by hand on Windows 11: shortcuts, Add/Remove Programs entry, and the `Run` value cleanup all behave
 
 **The updater bug this turned up:** `github.DefaultAssetMatcher` picks the first
 asset whose lowercased name contains both the platform and the arch, defaulting
