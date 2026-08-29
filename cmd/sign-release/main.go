@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const signingKeyEnv = "UPDATE_SIGNING_KEY"
@@ -24,12 +25,13 @@ func main() {
 }
 
 func run() error {
-	artifact := flag.String("artifact", "", "path to the release binary to hash and sign")
+	var artifacts artifactList
+	flag.Var(&artifacts, "artifact", "path to a release file to hash and sign; repeat for several")
 	sumsOut := flag.String("sums-out", "SHA256SUMS", "path to write the sha256sum-style digest listing")
 	sigOut := flag.String("sig-out", "SHA256SUMS.sig", "path to write the detached ed25519 signature listing")
 	flag.Parse()
 
-	if *artifact == "" {
+	if len(artifacts) == 0 {
 		return fmt.Errorf("-artifact is required")
 	}
 
@@ -38,22 +40,37 @@ func run() error {
 		return err
 	}
 
-	digest, err := hashFile(*artifact)
-	if err != nil {
-		return fmt.Errorf("hash %s: %w", *artifact, err)
+	var sums, sigs []string
+	for _, artifact := range artifacts {
+		digest, err := hashFile(artifact)
+		if err != nil {
+			return fmt.Errorf("hash %s: %w", artifact, err)
+		}
+		name := filepath.Base(artifact)
+
+		sums = append(sums, line(hex.EncodeToString(digest), name))
+		sigs = append(sigs, line(hex.EncodeToString(ed25519.Sign(priv, digest)), name))
+
+		fmt.Printf("signed %s (sha256 %s)\n", name, hex.EncodeToString(digest))
 	}
-	name := filepath.Base(*artifact)
 
-	sig := ed25519.Sign(priv, digest)
-
-	if err := writeLine(*sumsOut, hex.EncodeToString(digest), name); err != nil {
+	if err := writeLines(*sumsOut, sums); err != nil {
 		return err
 	}
-	if err := writeLine(*sigOut, hex.EncodeToString(sig), name); err != nil {
-		return err
-	}
+	return writeLines(*sigOut, sigs)
+}
 
-	fmt.Printf("signed %s (sha256 %s)\n", name, hex.EncodeToString(digest))
+// artifactList collects a repeated -artifact flag. The updater reads only the
+// line for its own binary, so extra entries are invisible to it.
+type artifactList []string
+
+func (a *artifactList) String() string { return strings.Join(*a, ",") }
+
+func (a *artifactList) Set(v string) error {
+	if v == "" {
+		return fmt.Errorf("artifact path is empty")
+	}
+	*a = append(*a, v)
 	return nil
 }
 
@@ -93,7 +110,11 @@ func hashFile(path string) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// writeLine writes a single sha256sum-style line: "<hex>  <filename>".
-func writeLine(path, hexValue, filename string) error {
-	return os.WriteFile(path, []byte(hexValue+"  "+filename+"\n"), 0o644)
+// line formats one sha256sum-style entry: "<hex>  <filename>".
+func line(hexValue, filename string) string {
+	return hexValue + "  " + filename + "\n"
+}
+
+func writeLines(path string, lines []string) error {
+	return os.WriteFile(path, []byte(strings.Join(lines, "")), 0o644)
 }

@@ -233,10 +233,11 @@ tasks:
       - bun run dev --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
-    summary: Updates the build assets
+    summary: Regenerates the Windows build assets from build/config.yml
     dir: build
     cmds:
-      - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
+      - cmd: powershell -NoProfile -ExecutionPolicy Bypass -File update-assets.ps1 -AppName "{{.APP_NAME}}"
+        platforms: [windows]
 
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)

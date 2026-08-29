@@ -51,10 +51,11 @@ tasks:
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
+          VERSION: '{{.VERSION}}'
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe" {{.MAIN_PACKAGE | default "."}}'
-      - cmd: powershell Remove-item *.syso
+      - cmd: powershell -NoProfile -Command "Remove-Item '{{.MAIN_PACKAGE | default "."}}/*.syso' -ErrorAction SilentlyContinue"
         platforms: [windows]
-      - cmd: rm -f *.syso
+      - cmd: rm -f {{.MAIN_PACKAGE | default "."}}/*.syso
         platforms: [linux, darwin]
     vars:
       # VERSION, when set (e.g. `task build VERSION=1.2.3`), is injected into
@@ -85,10 +86,11 @@ tasks:
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
+          VERSION: '{{.VERSION}}'
       - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.DOCKER_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{if eq .OBFUSCATED "true"}}-e OBFUSCATED=true{{end}} {{if .GARBLE_ARGS}}-e GARBLE_ARGS="{{.GARBLE_ARGS}}"{{end}} {{.CROSS_IMAGE}} windows {{.DOCKER_ARCH}}
       - cmd: docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
         platforms: [linux, darwin]
-      - rm -f *.syso
+      - rm -f {{.MAIN_PACKAGE | default "."}}/*.syso
     vars:
       DOCKER_ARCH: '{{.ARCH | default "amd64"}}'
       # Generate Docker volume mounts: Go module cache + go.mod replace directives
@@ -101,16 +103,22 @@ tasks:
     cmds:
       - task: '{{if eq (.FORMAT | default "nsis") "msix"}}create:msix:package{{else}}create:nsis:installer{{end}}'
         vars:
-          INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+          INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "user"}}'
+          VERSION: '{{.VERSION}}'
     vars:
       FORMAT: '{{.FORMAT | default "nsis"}}'
-      INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+      # Per-user by default: no UAC prompt, and the in-app updater can replace
+      # its own binary without elevation. See docs/adr/0006.
+      INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "user"}}'
 
   generate:syso:
     summary: Generates Windows `.syso` file
+    # The linker only picks up a .syso sitting in the main package's own
+    # directory, which for this project is MAIN_PACKAGE, not the repo root.
     dir: build
     cmds:
-      - wails3 generate syso -arch {{.ARCH}} -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_{{.ARCH}}.syso
+      - cmd: powershell -NoProfile -ExecutionPolicy Bypass -File windows/generate-syso.ps1 -Arch "{{.ARCH}}" -Version "{{.VERSION}}" -Out "../{{.MAIN_PACKAGE | default "."}}/wails_windows_{{.ARCH}}.syso"
+        platforms: [windows]
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
 
@@ -127,14 +135,19 @@ tasks:
       - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}/build/windows/nsis"
       - |
         {{if eq OS "windows"}}
-        makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
+        makensis -DWAILS_INSTALL_SCOPE={{.INSTALL_SCOPE}} -DREQUEST_EXECUTION_LEVEL={{.EXEC_LEVEL}} {{if .NSIS_VERSION}}-DINFO_PRODUCTVERSION={{.NSIS_VERSION}} {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
         {{else}}
-        makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
+        makensis -DWAILS_INSTALL_SCOPE={{.INSTALL_SCOPE}} -DREQUEST_EXECUTION_LEVEL={{.EXEC_LEVEL}} {{if .NSIS_VERSION}}-DINFO_PRODUCTVERSION={{.NSIS_VERSION}} {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
         {{end}}
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
-      INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
+      INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "user"}}'
+      EXEC_LEVEL: '{{if eq (.INSTALL_SCOPE | default "user") "user"}}user{{else}}admin{{end}}'
+      # NSIS wants a bare 3-part version, so a tag like v1.2.0-rc1 is trimmed to
+      # 1.2.0. Empty for an untagged build: config.yml's value is then used.
+      NSIS_VERSION:
+        sh: powershell -NoProfile -Command '("{{.VERSION}}" -replace "^v","" -replace "-.*$","").Trim()'
 
   create:msix:package:
     summary: Creates an MSIX package

@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "league-rpc-gui"
+  APP_NAME: "league-rpc"
   # The Go package that produces the GUI binary. The daemon-only build in
   # cmd/league-rpc is not a shipped artifact and is built directly with `go`.
   MAIN_PACKAGE: "./cmd/league-rpc-gui"
@@ -29,6 +29,11 @@ tasks:
     summary: Runs the application
     cmds:
       - task: "{{.GOOS}}:run"
+
+  assets:update:
+    summary: Regenerates the Windows build assets from build/config.yml
+    cmds:
+      - task: common:update:build-assets
 
   dev:
     summary: Runs the application in development mode
