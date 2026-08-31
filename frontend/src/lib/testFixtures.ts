@@ -27,8 +27,6 @@ export function DefaultConfig(): Config {
     },
     behavior: {
       launch_at_startup: false,
-      auto_launch_league: false,
-      league_path: "",
       close_action: "ask",
     },
     advanced: {

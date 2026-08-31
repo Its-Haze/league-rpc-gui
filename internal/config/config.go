@@ -51,10 +51,8 @@ type TemplatePair struct {
 
 // BehaviorConfig holds launch-related settings.
 type BehaviorConfig struct {
-	LaunchAtStartup  bool   `json:"launch_at_startup"`  // start with Windows
-	AutoLaunchLeague bool   `json:"auto_launch_league"` // launch League when the app starts
-	LeaguePath       string `json:"league_path"`        // custom League install path; empty auto-detects
-	CloseAction      string `json:"close_action"`       // ask | tray | quit
+	LaunchAtStartup bool   `json:"launch_at_startup"` // start with Windows
+	CloseAction     string `json:"close_action"`      // ask | tray | quit
 }
 
 // AdvancedConfig holds tuning knobs and debug options.
@@ -80,10 +78,8 @@ func DefaultConfig() *Config {
 			Templates:    defaultTemplates(),
 		},
 		Behavior: BehaviorConfig{
-			LaunchAtStartup:  true,
-			AutoLaunchLeague: false,
-			LeaguePath:       "",
-			CloseAction:      CloseAsk,
+			LaunchAtStartup: true,
+			CloseAction:     CloseAsk,
 		},
 		Advanced: AdvancedConfig{
 			UpdateInterval:       1500,

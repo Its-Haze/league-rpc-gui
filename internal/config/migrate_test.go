@@ -51,9 +51,6 @@ func TestLoad_MigratesFlatFileAndWritesItBack(t *testing.T) {
 	if got.Presence.ShowEmojis {
 		t.Error("show_emojis=false did not map to Presence.ShowEmojis")
 	}
-	if !got.Behavior.AutoLaunchLeague || got.Behavior.LeaguePath != `C:\Games\League` {
-		t.Errorf("league fields did not migrate: %+v", got.Behavior)
-	}
 	if got.Advanced.UpdateInterval != 2500 || got.Advanced.StatsPollingInterval != 4000 || !got.Advanced.DebugMode {
 		t.Errorf("advanced fields did not migrate: %+v", got.Advanced)
 	}
@@ -87,7 +84,7 @@ func TestLoad_MigratesV2FileMissingOnboardingComplete(t *testing.T) {
 	  "theme": "dark",
 	  "display": {"default": {"show_rank": true, "show_stats": true}, "modes": {}},
 	  "presence": {"show_emojis": true, "show_in_client": true, "idle": "", "templates": {}},
-	  "behavior": {"launch_at_startup": false, "auto_launch_league": false, "league_path": ""},
+	  "behavior": {"launch_at_startup": false, "close_action": "ask"},
 	  "advanced": {"update_interval": 1500, "stats_polling_interval": 3000, "debug_mode": false}
 	}`
 	if err := os.WriteFile(path, []byte(v2Fixture), 0o644); err != nil {
