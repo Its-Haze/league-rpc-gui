@@ -21,8 +21,8 @@ export function OnboardingFlow({ cfg, applyPatch }: OnboardingFlowProps) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6">
-      <div key={state.step} className="onboarding-step flex w-full max-w-xl flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-8">
+      <div key={state.step} className="onboarding-step flex w-full max-w-3xl flex-col gap-8">
         {state.step === "welcome" && <WelcomeStep />}
         {state.step === "settings" && <SettingsStep cfg={cfg} applyPatch={applyPatch} />}
         {state.step === "startup" && <StartupStep cfg={cfg} applyPatch={applyPatch} />}

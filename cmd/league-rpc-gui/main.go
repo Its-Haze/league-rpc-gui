@@ -147,10 +147,13 @@ func main() {
 
 	// A hidden launch opens straight to the tray; a manual run shows the
 	// window.
+	windowWidth, windowHeight := defaultWindowSize()
 	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "League RPC",
-		Width:            1040,
-		Height:           860,
+		Width:            windowWidth,
+		Height:           windowHeight,
+		MinWidth:         minWindowWidth,
+		MinHeight:        minWindowHeight,
 		Hidden:           startHidden,
 		BackgroundColour: application.NewRGB(15, 17, 23),
 		URL:              "/",

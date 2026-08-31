@@ -6,4 +6,5 @@ export { Dialog } from "./Dialog";
 export { Tabs } from "./Tabs";
 export type { TabItem } from "./Tabs";
 export { Field } from "./Field";
+export { SettingsCard } from "./SettingsCard";
 export { DebouncedTextField } from "./DebouncedTextField";

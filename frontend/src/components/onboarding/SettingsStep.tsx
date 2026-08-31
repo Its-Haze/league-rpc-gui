@@ -61,13 +61,13 @@ export function SettingsStep({ cfg, applyPatch }: SettingsStepProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Pick what shows up</h1>
-      <p className="text-muted text-sm">
+      <h1 className="text-2xl font-semibold">Pick what shows up</h1>
+      <p className="text-muted text-base">
         These are the same toggles you'll find later under Display, where you can always change
         them again.
       </p>
 
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-4">
+      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
         <Field id="onboarding-show-rank" label="Show rank" hint="Rank emblem and LP">
           <Toggle
             id="onboarding-show-rank"

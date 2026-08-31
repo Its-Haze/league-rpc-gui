@@ -1,7 +1,9 @@
+import { Radio } from "lucide-react";
 import type { StatusSnapshot } from "../../../../bindings/github.com/its-haze/league-rpc/internal/app/models";
 import { useDiscordAppName } from "../../../hooks/useDiscordAppName";
 import { useSettings } from "../../../hooks/useSettings";
 import { DiscordPresenceCard } from "../../DiscordPresenceCard";
+import { SettingsCard } from "../../ui";
 
 export interface PresencePreviewProps {
   status: StatusSnapshot | null;
@@ -15,8 +17,11 @@ export function PresencePreview({ status }: PresencePreviewProps) {
   const presence = status?.presence;
 
   return (
-    <section className="border-border bg-surface flex flex-col gap-3 rounded-lg border p-6">
-      <h2 className="text-sm font-semibold">Discord presence</h2>
+    <SettingsCard
+      icon={Radio}
+      title="Discord presence"
+      description="Exactly what League RPC last sent to Discord, not a re-guess of it."
+    >
 
       {status?.presence_cleared || !presence ? (
         <p className="text-muted text-sm">Presence is currently cleared.</p>
@@ -32,6 +37,6 @@ export function PresencePreview({ status }: PresencePreviewProps) {
           startUnixSeconds={presence.Start}
         />
       )}
-    </section>
+    </SettingsCard>
   );
 }

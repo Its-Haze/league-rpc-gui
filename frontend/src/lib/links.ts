@@ -6,6 +6,8 @@ import { Browser } from "@wailsio/runtime";
 export const DISCORD_COMMUNITY_URL = "https://discord.haze.sh";
 export const DISCORD_DEVELOPER_PORTAL_URL = "https://discord.com/developers/applications";
 export const GITHUB_REPO_URL = "https://github.com/its-haze/league-rpc";
+export const GITHUB_PROFILE_URL = "https://github.com/its-haze";
+export const AUTHOR_WEBSITE_URL = "https://haze.sh";
 export const BUG_REPORT_URL = "https://github.com/its-haze/league-rpc/issues/new?template=bug_report.md";
 export const FEATURE_REQUEST_URL =
   "https://github.com/its-haze/league-rpc/issues/new?template=feature_request.md";

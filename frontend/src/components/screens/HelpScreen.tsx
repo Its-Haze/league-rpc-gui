@@ -1,4 +1,4 @@
-import { Bug, MessageSquarePlus } from "lucide-react";
+import { Bug, LifeBuoy, MessageSquarePlus, PlayCircle, ScrollText } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
@@ -9,7 +9,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { formatDiagnostics } from "../../lib/diagnostics";
 import { BUG_REPORT_URL, DISCORD_COMMUNITY_URL, FEATURE_REQUEST_URL, openExternal } from "../../lib/links";
 import { DiscordIcon } from "../icons";
-import { Button } from "../ui";
+import { Button, SettingsCard } from "../ui";
 import { LogViewer } from "./help/LogViewer";
 
 // The Help section: log viewer, logs folder, diagnostics, and where to go
@@ -42,25 +42,31 @@ export function HelpScreen() {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Help</h1>
 
-      <section className="border-border bg-surface flex flex-col gap-3 rounded-lg border p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Logs</h2>
-          <div className="flex items-center gap-2">
+      <SettingsCard
+        icon={ScrollText}
+        title="Logs"
+        description="What League RPC has been doing. Copy diagnostics grabs your version and settings too, which is what a bug report needs."
+        action={
+          <>
             <Button variant="secondary" onClick={handleOpenFolder}>
               Open logs folder
             </Button>
             <Button variant="secondary" onClick={handleCopyDiagnostics}>
               Copy diagnostics
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      >
         <LogViewer />
         {folderError && <p className="text-danger text-xs">{folderError}</p>}
         {copyResult && <p className="text-muted text-xs">{copyResult}</p>}
-      </section>
+      </SettingsCard>
 
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <h2 className="text-sm font-semibold">Get help</h2>
+      <SettingsCard
+        icon={LifeBuoy}
+        title="Get help"
+        description="Ask a question, report something broken, or suggest what to build next."
+      >
         <HelpLink href={DISCORD_COMMUNITY_URL} icon={<DiscordIcon className="size-4" />}>
           Join the Discord community
         </HelpLink>
@@ -70,18 +76,19 @@ export function HelpScreen() {
         <HelpLink href={FEATURE_REQUEST_URL} icon={<MessageSquarePlus className="size-4" />}>
           Request a feature
         </HelpLink>
-      </section>
+      </SettingsCard>
 
       {cfg && (
-        <section className="border-border bg-surface flex items-center justify-between rounded-lg border p-6">
-          <div>
-            <h2 className="text-sm font-semibold">First-run walkthrough</h2>
-            <p className="text-muted text-xs">Replay the setup steps shown on first launch.</p>
-          </div>
-          <Button variant="secondary" onClick={() => void applyPatch({ onboarding_complete: false })}>
-            Replay walkthrough
-          </Button>
-        </section>
+        <SettingsCard
+          icon={PlayCircle}
+          title="First-run walkthrough"
+          description="Replay the setup steps shown on first launch. Your current settings stay as they are."
+          action={
+            <Button variant="secondary" onClick={() => void applyPatch({ onboarding_complete: false })}>
+              Replay walkthrough
+            </Button>
+          }
+        />
       )}
     </div>
   );

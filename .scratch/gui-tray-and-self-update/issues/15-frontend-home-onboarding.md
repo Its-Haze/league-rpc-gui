@@ -6,7 +6,7 @@
 
 **Status:** done
 
-- [x] Dashboard shows the three connection states with short explanations and the current phase
+- [x] ~~Dashboard shows the three connection states with short explanations and the current phase~~ removed at the user's request; see Follow-up
 - [x] Live preview card mirrors `GetStatus()` last-sent presence and updates on `status:changed`
 - [x] ~~"Test presence" button calls `App.TestPresence()` and indicates the ~30s test window~~ removed at the user's request; see notes
 - [x] First-run walkthrough renders inline on first launch only, with live Discord/League checkmarks
@@ -31,3 +31,11 @@ end-to-end rather than just hiding the button: `App.TestPresence`, the `TestPres
 carve-out in `presenceLoop`), `Updater.PushSample`, and `discord.BuildTestPresence`, plus every
 test exercising them. `PresencePreview` now shows the resolved Discord Application name (see
 ticket 14's follow-up) instead of the button.
+
+**Follow-up:** the user asked for Home to read as a plain-language introduction to the app
+instead of a technical status dashboard — connection states already live in the tray/window
+title bar area, and duplicating them here added noise. Removed `StatusDashboard` (and
+`ConnectionLight`, left with no other caller) and replaced it with `Welcome`: a short "what this
+app does" paragraph plus a few read-once tips (start it in any order relative to League, turn on
+start-with-Windows, closing the window just hides it to the tray, settings persist). The
+onboarding walkthrough and the live `PresencePreview` card stayed as they were.

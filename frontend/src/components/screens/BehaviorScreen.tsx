@@ -1,3 +1,4 @@
+import { CircleSlash, DownloadCloud, PanelTopClose, Power } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   GetStatus,
@@ -8,7 +9,7 @@ import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
 import { useStatus } from "../../hooks/useStatus";
 import { withCloseAction, withLaunchAtStartup, type CloseAction } from "../../lib/behaviorPatch";
-import { Field, Select, Toggle, type SelectOption } from "../ui";
+import { Button, Select, SettingsCard, Toggle, type SelectOption } from "../ui";
 
 const CLOSE_ACTIONS: SelectOption[] = [
   { value: "ask", label: "Ask me every time" },
@@ -53,71 +54,67 @@ export function BehaviorScreen() {
       <h1 className="text-xl font-semibold">Behavior</h1>
       {error && <p className="text-danger text-sm">{error}</p>}
 
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field
-          id="pause-presence"
-          label="Pause presence"
-          hint="Clears your Discord status immediately, resumes on next launch"
-        >
+      <SettingsCard
+        icon={CircleSlash}
+        title="Pause presence"
+        description="Stops updating your Discord status and clears it right away. Turn it back off whenever you like, and a restart unpauses it too."
+        action={
           <Toggle
             id="pause-presence"
             checked={paused}
             onCheckedChange={togglePaused}
             label="Pause presence"
           />
-        </Field>
-      </section>
+        }
+      />
 
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
-        <Field
-          id="launch-at-startup"
-          label="Start with Windows"
-          hint="Launches minimized to the tray"
-          onReset={defaults ? () => void applyPatch(withLaunchAtStartup(cfg, defaults.behavior.launch_at_startup)) : undefined}
-          isDefault={!defaults || cfg.behavior.launch_at_startup === defaults.behavior.launch_at_startup}
-        >
+      <SettingsCard
+        icon={Power}
+        title="Start with Windows"
+        description="Launches minimized to the tray when you sign in, so your status is live before your first game."
+        badge="Recommended"
+        highlighted
+        onReset={defaults ? () => void applyPatch(withLaunchAtStartup(cfg, defaults.behavior.launch_at_startup)) : undefined}
+        isDefault={!defaults || cfg.behavior.launch_at_startup === defaults.behavior.launch_at_startup}
+        action={
           <Toggle
             id="launch-at-startup"
             checked={cfg.behavior.launch_at_startup}
             onCheckedChange={(v) => void applyPatch(withLaunchAtStartup(cfg, v))}
             label="Start with Windows"
           />
-        </Field>
-        <Field
-          id="close-action"
-          label="When I close the window"
-          hint="Hiding keeps presence running. Reopen from the tray icon"
-          onReset={defaults ? () => void applyPatch(withCloseAction(cfg, defaults.behavior.close_action as CloseAction)) : undefined}
-          isDefault={!defaults || cfg.behavior.close_action === defaults.behavior.close_action}
-        >
+        }
+      />
+
+      <SettingsCard
+        icon={PanelTopClose}
+        title="When I close the window"
+        description="Hiding keeps your presence running in the background. Reopen it from the tray icon."
+        onReset={defaults ? () => void applyPatch(withCloseAction(cfg, defaults.behavior.close_action as CloseAction)) : undefined}
+        isDefault={!defaults || cfg.behavior.close_action === defaults.behavior.close_action}
+        action={
           <Select
             aria-label="When I close the window"
             value={cfg.behavior.close_action}
             onValueChange={(v) => void applyPatch(withCloseAction(cfg, v as CloseAction))}
             options={CLOSE_ACTIONS}
           />
-        </Field>
-      </section>
+        }
+      />
 
-      <section className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm">Update channel</span>
-            <span className="text-muted text-xs">Stable only for now</span>
-          </div>
-          <span className="text-muted text-sm">stable</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleCheck}
-            disabled={checking}
-            className="border-border bg-surface-raised rounded-sm border px-3 py-1.5 text-sm disabled:opacity-60"
-          >
-            {checking ? "Checking…" : "Check for updates"}
-          </button>
-          {checkResult && <span className="text-muted text-sm">{checkResult}</span>}
-        </div>
-      </section>
+      <SettingsCard
+        icon={DownloadCloud}
+        title="Updates"
+        description="You're on the stable channel. New versions install from inside the app."
+        action={
+          <>
+            {checkResult && <span className="text-muted text-sm">{checkResult}</span>}
+            <Button variant="secondary" onClick={handleCheck} disabled={checking}>
+              {checking ? "Checking…" : "Check for updates"}
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }

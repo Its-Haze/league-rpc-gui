@@ -1,4 +1,4 @@
-import { RotateCcw } from "lucide-react";
+import { AppWindow, Bug, Gauge, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useConfigBounds } from "../../hooks/useConfigBounds";
 import { useDefaultConfig } from "../../hooks/useDefaultConfig";
@@ -13,7 +13,7 @@ import {
   type Bounds,
 } from "../../lib/advancedBounds";
 import { DISCORD_DEVELOPER_PORTAL_URL, openExternal } from "../../lib/links";
-import { DebouncedTextField, Field, Select, Toggle } from "../ui";
+import { DebouncedTextField, Field, Select, SettingsCard, Toggle } from "../ui";
 
 // The Advanced section: Discord App ID (preset or custom), the two tuning
 // intervals clamped to the config package's bounds, and debug logging.
@@ -80,11 +80,15 @@ export function AdvancedScreen() {
       <h1 className="text-xl font-semibold">Advanced</h1>
       {error && <p className="text-danger text-sm">{error}</p>}
 
-      <section className="border-border bg-surface flex flex-col gap-1 rounded-lg border p-6">
+      <SettingsCard
+        icon={AppWindow}
+        title="Discord application"
+        description="Which app your presence appears under, including its name and icon on your profile."
+      >
         <Field
           id="app-id-preset"
-          label="Discord Application ID"
-          hint="Which app's presence this shows as"
+          label="Application"
+          hint="Pick a preset, or point it at your own Discord app"
           onReset={defaults ? handleAppIdReset : undefined}
           isDefault={!defaults || cfg.discord_app_id === defaults.discord_app_id}
         >
@@ -97,7 +101,7 @@ export function AdvancedScreen() {
         </Field>
         {selectValue === CUSTOM_PRESET_VALUE && (
           <>
-            <Field id="app-id-custom" label="Custom Application ID">
+            <Field id="app-id-custom" label="Application ID">
               <DebouncedTextField
                 id="app-id-custom"
                 value={customValue}
@@ -115,51 +119,52 @@ export function AdvancedScreen() {
           </>
         )}
         {appIdInvalid && <p className="text-danger text-xs">Discord Application ID must not be empty.</p>}
-      </section>
+      </SettingsCard>
 
-      <section className="border-border bg-surface flex flex-col gap-4 rounded-lg border p-6">
-        <div>
-          <h2 className="text-sm font-semibold">Update speed</h2>
-          <p className="text-muted text-xs">
-            How often League RPC checks for changes and refreshes your Discord status. Faster
-            feels more live. Slower is lighter on your PC.
-          </p>
+      <SettingsCard
+        icon={Gauge}
+        title="Update speed"
+        description="How often League RPC refreshes what Discord shows. Faster feels more live, slower is lighter on your PC."
+      >
+        <div className="flex flex-col gap-4 pt-1">
+          <IntervalSlider
+            id="update-interval"
+            label="Discord status"
+            description="How quickly your status updates when your queue, rank, or game changes."
+            bounds={bounds.updateInterval}
+            value={cfg.advanced.update_interval}
+            defaultValue={defaults?.advanced.update_interval}
+            onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, update_interval: v } })}
+          />
+          <IntervalSlider
+            id="stats-interval"
+            label="In-game stats"
+            description="How often your KDA and creep score refresh while you're in a game."
+            bounds={bounds.statsPollingInterval}
+            value={cfg.advanced.stats_polling_interval}
+            defaultValue={defaults?.advanced.stats_polling_interval}
+            onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, stats_polling_interval: v } })}
+          />
         </div>
-        <IntervalSlider
-          id="update-interval"
-          label="Discord status"
-          description="How quickly your status updates when your queue, rank, or game changes."
-          bounds={bounds.updateInterval}
-          value={cfg.advanced.update_interval}
-          defaultValue={defaults?.advanced.update_interval}
-          onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, update_interval: v } })}
-        />
-        <IntervalSlider
-          id="stats-interval"
-          label="In-game stats"
-          description="How often your KDA and creep score refresh while you're in a game."
-          bounds={bounds.statsPollingInterval}
-          value={cfg.advanced.stats_polling_interval}
-          defaultValue={defaults?.advanced.stats_polling_interval}
-          onCommit={(v) => void applyPatch({ advanced: { ...cfg.advanced, stats_polling_interval: v } })}
-        />
-        <Field
-          id="debug-mode"
-          label="Debug logging"
-          hint="Takes effect immediately, no restart needed"
-          onReset={
-            defaults ? () => void applyPatch({ advanced: { ...cfg.advanced, debug_mode: defaults.advanced.debug_mode } }) : undefined
-          }
-          isDefault={!defaults || cfg.advanced.debug_mode === defaults.advanced.debug_mode}
-        >
+      </SettingsCard>
+
+      <SettingsCard
+        icon={Bug}
+        title="Debug logging"
+        description="Writes far more detail to the log file, for when you're chasing a problem. Takes effect immediately."
+        onReset={
+          defaults ? () => void applyPatch({ advanced: { ...cfg.advanced, debug_mode: defaults.advanced.debug_mode } }) : undefined
+        }
+        isDefault={!defaults || cfg.advanced.debug_mode === defaults.advanced.debug_mode}
+        action={
           <Toggle
             id="debug-mode"
             checked={cfg.advanced.debug_mode}
             onCheckedChange={(v) => void applyPatch({ advanced: { ...cfg.advanced, debug_mode: v } })}
             label="Debug logging"
           />
-        </Field>
-      </section>
+        }
+      />
     </div>
   );
 }
