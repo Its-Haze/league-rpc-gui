@@ -43,7 +43,7 @@ func MapStateToPresence(st *state.State, cfg *config.Config) *RPCData {
 		return BuildInQueuePresence(st, cfg)
 
 	case types.GameFlowLobby:
-		// In lobby - check if custom or matchmaking
+		// In lobby - check if custom game / practice tool or matchmaking
 		if st.IsCustom || st.IsPractice {
 			return BuildInCustomLobbyPresence(st, cfg)
 		}

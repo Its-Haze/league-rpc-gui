@@ -1,7 +1,7 @@
 package discord
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/its-haze/league-rpc/internal/config"
@@ -78,9 +78,11 @@ func BuildInLobbyPresence(st *state.State, cfg *config.Config) *RPCData {
 		smallImage = GetLeagueLogoURL()
 	}
 
-	details := queueDisplayName(st)
-
-	lobbyState := fmt.Sprintf("In Lobby (%d/%d)", st.Players, st.MaxPlayers)
+	details, lobbyState := renderPresenceText(cfg, template.ContextLobby, map[string]string{
+		"queue":       queueDisplayName(st),
+		"players":     strconv.Itoa(st.Players),
+		"max_players": strconv.Itoa(st.MaxPlayers),
+	})
 
 	return &RPCData{
 		LargeImage: largeImage,
@@ -93,20 +95,26 @@ func BuildInLobbyPresence(st *state.State, cfg *config.Config) *RPCData {
 	}
 }
 
-// BuildInCustomLobbyPresence builds RPC data for custom/practice lobbies
+// BuildInCustomLobbyPresence builds RPC data for custom games and the practice tool.
 func BuildInCustomLobbyPresence(st *state.State, cfg *config.Config) *RPCData {
 	largeImage := GetProfileIconURL(st.SummonerIcon)
 	largeText := FormatGameModeName(st.GameMode)
 	smallImage := GetMapIconURL(st.MapID)
 	smallText := constants.SmallText
 
+	details, lobbyState := renderPresenceText(cfg, template.ContextCustomLobby, map[string]string{
+		"queue":       queueDisplayName(st),
+		"players":     strconv.Itoa(st.Players),
+		"max_players": strconv.Itoa(st.MaxPlayers),
+	})
+
 	return &RPCData{
 		LargeImage: largeImage,
 		LargeText:  largeText,
 		SmallImage: smallImage,
 		SmallText:  smallText,
-		Details:    st.QueueName,
-		State:      "In Lobby",
+		Details:    details,
+		State:      lobbyState,
 		Start:      st.ApplicationStartTime,
 	}
 }
@@ -134,13 +142,9 @@ func BuildInQueuePresence(st *state.State, cfg *config.Config) *RPCData {
 		smallImage = GetLeagueLogoURL()
 	}
 
-	details := queueDisplayName(st)
-
-	queueState := "In Queue"
-	// Special case for Clash
-	if st.GameFlowPhase == types.GameFlowCheckedIntoTournament {
-		queueState = "In Queue (Clash)"
-	}
+	details, queueState := renderPresenceText(cfg, template.ContextQueue, map[string]string{
+		"queue": queueDisplayName(st),
+	})
 
 	return &RPCData{
 		LargeImage: largeImage,
@@ -268,9 +272,10 @@ func BuildTFTInGamePresence(st *state.State, cfg *config.Config) *RPCData {
 		smallText = st.TFTRank.String()
 	}
 
-	details := queueDisplayName(st)
-
-	gameState := fmt.Sprintf("In Game · lvl: %d", st.Level)
+	details, gameState := renderPresenceText(cfg, template.ContextTFTInGame, map[string]string{
+		"queue": queueDisplayName(st),
+		"level": strconv.Itoa(st.Level),
+	})
 
 	// Loading screen: GameStartTime isn't resolved yet, so fall back to now.
 	start := st.GameStartTime

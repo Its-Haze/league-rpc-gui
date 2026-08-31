@@ -166,6 +166,27 @@ func TestDefault_ReproducesLegacyStrings(t *testing.T) {
 			wantState:   "In Client",
 		},
 		{
+			name:        "lobby, full party",
+			ctx:         ContextLobby,
+			data:        map[string]string{"queue": "Ranked Solo/Duo", "players": "3", "max_players": "5"},
+			wantDetails: "Ranked Solo/Duo",
+			wantState:   "In Lobby (3/5)",
+		},
+		{
+			name:        "custom-lobby",
+			ctx:         ContextCustomLobby,
+			data:        map[string]string{"queue": "Practice Tool", "players": "1", "max_players": "1"},
+			wantDetails: "Practice Tool",
+			wantState:   "In Lobby",
+		},
+		{
+			name:        "queue",
+			ctx:         ContextQueue,
+			data:        map[string]string{"queue": "Ranked Solo/Duo"},
+			wantDetails: "Ranked Solo/Duo",
+			wantState:   "In Queue",
+		},
+		{
 			name:        "champ-select",
 			ctx:         ContextChampSelect,
 			data:        map[string]string{"queue": "Ranked Solo/Duo"},
@@ -192,6 +213,13 @@ func TestDefault_ReproducesLegacyStrings(t *testing.T) {
 			data:        map[string]string{"queue": "Arena", "stats": "4/1/7 · lvl: 14 · gold: 8200"},
 			wantDetails: "Arena",
 			wantState:   "In Game · 4/1/7 · lvl: 14 · gold: 8200",
+		},
+		{
+			name:        "tft-in-game",
+			ctx:         ContextTFTInGame,
+			data:        map[string]string{"queue": "Teamfight Tactics", "level": "7"},
+			wantDetails: "Teamfight Tactics",
+			wantState:   "In Game · lvl: 7",
 		},
 		{
 			name:        "spectating, mode resolved",
@@ -250,8 +278,8 @@ func TestRenderPair_DedupesUnknownAcrossLines(t *testing.T) {
 }
 
 func TestContextsAndKnownTokens(t *testing.T) {
-	if len(Contexts()) != 4 {
-		t.Fatalf("Contexts() = %v, want 4", Contexts())
+	if len(Contexts()) != 8 {
+		t.Fatalf("Contexts() = %v, want 8", Contexts())
 	}
 	for _, ctx := range Contexts() {
 		if !IsContext(ctx) {

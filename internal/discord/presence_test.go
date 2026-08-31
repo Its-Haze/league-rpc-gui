@@ -224,20 +224,55 @@ func TestBuildTFTInGamePresence_FallsBackToNowWhenGameStartTimeUnresolved(t *tes
 	}
 }
 
-func TestBuildInCustomLobbyPresence_DetailsIsRawQueueNameStateIsFixed(t *testing.T) {
+func TestBuildInCustomLobbyPresence_DetailsIsQueueNameStateIsFixed(t *testing.T) {
 	cfg := config.DefaultConfig()
 	st := state.NewState()
 	st.QueueName = "Practice Tool"
 	st.IsPractice = true
+	st.Players, st.MaxPlayers = 1, 1
 
 	got := BuildInCustomLobbyPresence(st, cfg)
 	if got.Details != "Practice Tool" {
-		t.Errorf("Details = %q, want %q (no prefix)", got.Details, "Practice Tool")
+		t.Errorf("Details = %q, want %q", got.Details, "Practice Tool")
 	}
-	// State is always the fixed "In Lobby" string, never a repeat of
-	// Details/queue name, regardless of custom vs. practice tool.
-	if got.State != "In Lobby" {
-		t.Errorf("State = %q, want %q", got.State, "In Lobby")
+	// Default state stays the fixed "In Lobby", unlike matchmaking lobbies:
+	// a solo practice tool session showing "(1/1)" isn't useful information.
+	if want := "In Lobby"; got.State != want {
+		t.Errorf("State = %q, want %q", got.State, want)
+	}
+}
+
+func TestBuildInLobbyPresence_StateShowsPlayerCount(t *testing.T) {
+	cfg := config.DefaultConfig()
+	st := state.NewState()
+	st.QueueID = types.QueueSoloQ
+	st.Players, st.MaxPlayers = 3, 5
+
+	got := BuildInLobbyPresence(st, cfg)
+	if want := "In Lobby (3/5)"; got.State != want {
+		t.Errorf("State = %q, want %q", got.State, want)
+	}
+}
+
+func TestBuildInQueuePresence_StateIsPlainInQueueRegardlessOfClash(t *testing.T) {
+	cfg := config.DefaultConfig()
+	st := state.NewState()
+	st.GameFlowPhase = types.GameFlowCheckedIntoTournament
+
+	got := BuildInQueuePresence(st, cfg)
+	if want := "In Queue"; got.State != want {
+		t.Errorf("State = %q, want %q (Clash no longer gets a special-cased state)", got.State, want)
+	}
+}
+
+func TestBuildTFTInGamePresence_StateShowsLevel(t *testing.T) {
+	cfg := config.DefaultConfig()
+	st := state.NewState()
+	st.Level = 7
+
+	got := BuildTFTInGamePresence(st, cfg)
+	if want := "In Game · lvl: 7"; got.State != want {
+		t.Errorf("State = %q, want %q", got.State, want)
 	}
 }
 

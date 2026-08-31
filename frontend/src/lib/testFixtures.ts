@@ -16,8 +16,12 @@ export function DefaultConfig(): Config {
       show_in_client: true,
       templates: {
         "in-client": { details: "{emoji}  {availability}", state: "In Client" },
+        lobby: { details: "{queue}", state: "In Lobby ({players}/{max_players})" },
+        "custom-lobby": { details: "{queue}", state: "In Lobby" },
+        queue: { details: "{queue}", state: "In Queue" },
         "champ-select": { details: "{queue}", state: "In Champ Select" },
         "in-game": { details: "{queue}", state: "In Game · {stats}" },
+        "tft-in-game": { details: "{queue}", state: "In Game · lvl: {level}" },
         spectating: { details: "{mode}", state: "Spectating" },
       },
     },

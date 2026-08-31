@@ -13,8 +13,12 @@ type Context string
 
 const (
 	ContextInClient    Context = "in-client"
+	ContextLobby       Context = "lobby"
+	ContextCustomLobby Context = "custom-lobby"
+	ContextQueue       Context = "queue"
 	ContextChampSelect Context = "champ-select"
 	ContextInGame      Context = "in-game"
+	ContextTFTInGame   Context = "tft-in-game"
 	ContextSpectating  Context = "spectating"
 )
 
@@ -35,8 +39,12 @@ var (
 
 var knownTokens = map[Context][]string{
 	ContextInClient:    {"emoji", "availability"},
+	ContextLobby:       {"queue", "players", "max_players"},
+	ContextCustomLobby: {"queue", "players", "max_players"},
+	ContextQueue:       {"queue"},
 	ContextChampSelect: {"queue", "mode"},
 	ContextInGame:      {"queue", "mode", "stats", "champion", "skin"},
+	ContextTFTInGame:   {"queue", "level"},
 	ContextSpectating:  {"mode", "queue"},
 }
 
@@ -44,13 +52,20 @@ var knownTokens = map[Context][]string{
 // Each reproduces the string the app produced before templates were editable.
 var defaults = map[Context][2]string{
 	ContextInClient:    {"{emoji}  {availability}", "In Client"},
+	ContextLobby:       {"{queue}", "In Lobby ({players}/{max_players})"},
+	ContextCustomLobby: {"{queue}", "In Lobby"},
+	ContextQueue:       {"{queue}", "In Queue"},
 	ContextChampSelect: {"{queue}", "In Champ Select"},
 	ContextInGame:      {"{queue}", "In Game \u00b7 {stats}"},
+	ContextTFTInGame:   {"{queue}", "In Game \u00b7 lvl: {level}"},
 	ContextSpectating:  {"{mode}", "Spectating"},
 }
 
 var sampleData = map[Context]map[string]string{
 	ContextInClient:    {"emoji": "\U0001F7E2", "availability": "Online"},
+	ContextLobby:       {"queue": "Ranked Solo/Duo", "players": "3", "max_players": "5"},
+	ContextCustomLobby: {"queue": "Practice Tool", "players": "1", "max_players": "1"},
+	ContextQueue:       {"queue": "Ranked Solo/Duo"},
 	ContextChampSelect: {"queue": "Ranked Solo/Duo", "mode": "Summoner's Rift"},
 	ContextInGame: {
 		"queue":    "Ranked Solo/Duo",
@@ -59,12 +74,16 @@ var sampleData = map[Context]map[string]string{
 		"champion": "Cho'Gath",
 		"skin":     "Battlecast Cho'Gath",
 	},
+	ContextTFTInGame:  {"queue": "Teamfight Tactics", "level": "7"},
 	ContextSpectating: {"mode": "Howling Abyss (ARAM)", "queue": "Howling Abyss (ARAM)"},
 }
 
-// Contexts returns every context in a stable order.
+// Contexts returns every context in a stable, phase-chronological order.
 func Contexts() []Context {
-	return []Context{ContextInClient, ContextChampSelect, ContextInGame, ContextSpectating}
+	return []Context{
+		ContextInClient, ContextLobby, ContextCustomLobby, ContextQueue, ContextChampSelect,
+		ContextInGame, ContextTFTInGame, ContextSpectating,
+	}
 }
 
 // KnownTokens returns the token names valid for ctx, or nil for an unknown ctx.

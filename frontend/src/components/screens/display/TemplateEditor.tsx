@@ -27,6 +27,21 @@ function previewImages(
     case "in-client":
       // BuildInClientPresence never swaps in a rank emblem.
       return { largeImage: assets.profile_icon_url, smallImage: assets.league_logo_url };
+    case "lobby":
+      // BuildInLobbyPresence: map icon by default, rank emblem when shown.
+      return {
+        largeImage: assets.profile_icon_url,
+        smallImage: showRank ? assets.rank_emblem_url : assets.map_icon_url,
+      };
+    case "custom-lobby":
+      // BuildInCustomLobbyPresence: always the map icon, no rank swap.
+      return { largeImage: assets.profile_icon_url, smallImage: assets.map_icon_url };
+    case "queue":
+      // BuildInQueuePresence: map icon by default, rank emblem when shown.
+      return {
+        largeImage: assets.profile_icon_url,
+        smallImage: showRank ? assets.rank_emblem_url : assets.map_icon_url,
+      };
     case "champ-select":
       // BuildInChampSelectPresence: map icon by default, rank emblem when shown.
       return {
@@ -35,6 +50,12 @@ function previewImages(
       };
     case "in-game":
       // BuildInGamePresence: league logo by default, rank emblem when shown.
+      return {
+        largeImage: assets.champion_skin_url,
+        smallImage: showRank ? assets.rank_emblem_url : assets.league_logo_url,
+      };
+    case "tft-in-game":
+      // BuildTFTInGamePresence: TFT companion large image, league logo small
       return {
         largeImage: assets.champion_skin_url,
         smallImage: showRank ? assets.rank_emblem_url : assets.league_logo_url,
