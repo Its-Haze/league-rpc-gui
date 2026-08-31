@@ -26,6 +26,13 @@ import (
 const singleInstanceID = "com.its-haze.league-rpc"
 
 func main() {
+	// A run launched by the Run entry carries the hidden marker. Drop any
+	// console Windows attached to it before anything can write there.
+	startHidden := startup.StartedHidden(os.Args[1:])
+	if startHidden {
+		startup.DetachConsole()
+	}
+
 	cfg, err := config.LoadOrCreate()
 	if err != nil {
 		log.Fatalf("load configuration: %v", err)
@@ -138,14 +145,12 @@ func main() {
 	// Follow a debug-logging toggle immediately, not just on the next launch.
 	go watchConfigField(ctx, store, func(c *config.Config) bool { return c.Advanced.DebugMode }, logging.SetDebug)
 
-	// A run launched by the Run entry carries the hidden marker and opens to
-	// the tray; a manual run shows the window.
-	startHidden := startup.StartedHidden(os.Args[1:])
-
+	// A hidden launch opens straight to the tray; a manual run shows the
+	// window.
 	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "League RPC",
 		Width:            1040,
-		Height:           700,
+		Height:           860,
 		Hidden:           startHidden,
 		BackgroundColour: application.NewRGB(15, 17, 23),
 		URL:              "/",
