@@ -1,30 +1,36 @@
 # GUI, system tray, and in-app self-update
 
-Status: in-progress
+Status: done
 
 ## Progress
 
-Backend and startup wiring are done; the frontend and release pipeline are not.
+Every ticket is done. Ticket 06 (per-mode display overrides) and its follow-ups 18/19 were
+later removed end-to-end at the user's request (see ticket 12's Follow-up note); the feature
+existed only briefly.
 
 - [x] 01 Wails shell hosting the daemon in one process
 - [x] 02 Config schema v2 and one-time migration
 - [x] 03 Logging to a rotating file and an in-memory ring buffer
 - [x] 04 System tray, window lifecycle, and the Pause flag
 - [x] 05 Presence template engine
-- [x] 06 Per-mode display overrides
+- [x] ~~06 Per-mode display overrides~~ shipped, then removed end-to-end at the user's request (ticket 12 Follow-up)
 - [x] 07 Start-with-Windows registry reconciler
-- [x] 08 Status bridge, last-sent preview, and Test presence
+- [x] 08 Status bridge, last-sent preview, and Test presence (Test presence itself was later removed, see ticket 15 Follow-up)
 - [x] 09 In-app update client and UI
-- [ ] 10 Release pipeline and update signing
+- [x] 10 Release pipeline and update signing
 - [x] 11 Frontend shell: navigation, top strip, theme
 - [x] 12 Frontend: Display screen
 - [x] 13 Frontend: Behavior screen
 - [x] 14 Frontend: Advanced screen
 - [x] 15 Frontend: Home dashboard and first-run onboarding
 - [x] 16 Frontend: Help and About
-- [ ] 17 Docs and GitHub issue templates
-- [x] 18 Per-mode display override leaks into idle and post-game presence (follow-up to 06)
-- [x] 19 GameModes() can silently drift from the GameMode const block (follow-up to 06)
+- [x] 17 Docs and GitHub issue templates
+- [x] 18 Per-mode display override leaks into idle and post-game presence (follow-up to 06; moot once 06 was removed)
+- [x] 19 GameModes() can silently drift from the GameMode const block (follow-up to 06; moot once 06 was removed)
+
+Windows packaging (an NSIS installer, alongside the signed-binary-swap update path) was added
+after ticket 10 as unplanned work, not one of the numbered tickets above; see
+[ADR-0006](../../docs/adr/0006-per-user-install-scope.md), which amends ADR-0005.
 
 A `/code-review high` pass after 12-16 landed found: a schema-v2 install missing
 `OnboardingComplete` would replay the walkthrough (migration only triggered on

@@ -6,7 +6,7 @@ A modern, fast, and user-friendly Discord Rich Presence application for League o
 
 League RPC is designed to provide:
 - **Better Performance**: Native Go application with minimal resource usage
-- **Modern GUI**: Clean, intuitive interface built with React + shadcn/ui
+- **Modern GUI**: Clean interface built with React, Tailwind CSS, and Radix UI
 - **Easy Configuration**: All settings accessible through the GUI (no command-line flags!)
 - **Rich Features**: Full Discord Rich Presence coverage for every phase of a League session
 
@@ -17,8 +17,10 @@ League RPC is designed to provide:
 - **Champion Skins**: Display selected skins (including animated Ultimate skins)
 - **Rank Display**: Show your rank across all game modes (SoloQ, Flex, TFT, Arena)
 - **TFT Support**: Display your favorite TFT companion
-- **Easy Configuration**: All settings managed through the GUI
-- **Auto-update Checker**: Get notified of new versions
+- **Customizable Presence Text**: edit the details/state shown for each phase (in client, champ select, in game, spectating), with a live preview
+- **System Tray**: closing the window hides it to the tray; presence keeps running until you quit from there
+- **Start with Windows**: optional, with the window starting hidden
+- **In-app Updates**: checks GitHub Releases and installs a signed update with one click, no manual download
 
 ## Technology stack
 
@@ -31,54 +33,43 @@ See `go.mod` for the pinned versions.
 | **lcu-gopher** | League Client API integration (WebSocket + HTTP) |
 | **internal/discord/ipc** | Discord Rich Presence transport (in-house, see DEPENDENCIES.md) |
 | **gopsutil/v4** | Process detection (Discord, League) |
-| **zerolog** | High-performance structured logging |
+| **zerolog** + **lumberjack** | Structured logging to a rotating file and an in-memory ring buffer |
+| **Wails v3** | Hosts the GUI and the daemon in one process; system tray, window, and the signed in-app updater |
 
-### Frontend (To be added)
+### Frontend
 
-- **Wails v3**: Desktop application framework
-- **React + TypeScript**: Modern UI framework
-- **shadcn/ui**: Beautiful, accessible components
-- **Tailwind CSS**: Utility-first styling
+See `frontend/package.json` for pinned versions.
+
+| Dependency | Purpose |
+|------------|---------|
+| **React + TypeScript** | UI framework |
+| **Tailwind CSS + Radix UI primitives** | Styling and accessible component behavior (no shadcn/ui, see DEPENDENCIES.md) |
+| **lucide-react** | Icons |
+| **dompurify** | Sanitizes the rendered changelog markdown |
+| **Vitest + React Testing Library** | Frontend unit tests |
 
 ## Development status
 
-Currently in early development.
+The GUI, system tray, config, presence templates, and in-app updates described above are built. See `.scratch/gui-tray-and-self-update/` for the milestone's tickets and history.
 
-### Completed
-- [x] Project initialization
-- [x] Core dependencies installed
-- [x] Directory structure created
-- [x] Architecture designed
-
-### In Progress
-- [ ] Configuration system
-- [ ] LCU client wrapper
-- [ ] Discord RPC integration
-- [ ] State management
-- [ ] Frontend setup with Wails
-
-### Planned
-- [ ] Settings GUI
-- [ ] System tray integration
-- [ ] Auto-launch functionality
-- [ ] Update checker
-- [ ] Comprehensive testing
+### Remaining
+- [ ] Windows code-signing certificate (unsigned builds currently trigger a SmartScreen warning; see ADR-0005)
+- [ ] macOS / Linux support (not planned; see Platform Support below)
 
 ## Configuration
 
 All settings are stored in `%APPDATA%\league-rpc\config.json` and managed through the GUI:
 
-- **Discord App ID**: Choose from presets or use custom
-- **Display Options**: Toggle stats, rank, emojis, in-client presence
-- **League Settings**: Auto-launch League, custom installation path
-- **Advanced**: Update interval, debug mode
+- **Display**: Toggle rank, stats, emojis, and in-client presence; edit the presence text template for each phase (in client, champ select, in game, spectating), with a live preview
+- **Behavior**: Start with Windows, what closing the window does, pause presence
+- **Advanced**: Discord App ID (presets or custom), update/polling intervals, debug logging
 
 ## Building from Source
 
 ### Prerequisites
-- Go 1.22 or later
-- Node.js 18+ (for frontend)
-- Wails CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
+- Go (see `go.mod` for the version)
+- Node.js 18+ (for the frontend)
+- [Task](https://taskfile.dev/) and the Wails v3 CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
 
 ### Development
 
@@ -87,15 +78,20 @@ All settings are stored in `%APPDATA%\league-rpc\config.json` and managed throug
 git clone https://github.com/its-haze/league-rpc
 cd league-rpc
 
-# Install dependencies
+# Install Go dependencies
 go mod download
 
-# Run in development mode (after Wails setup)
-wails3 dev
+# Run in development mode, with hot reload
+task dev
 
-# Build for production
-wails3 build
+# Build a binary (bin/league-rpc-gui.exe)
+task build
+
+# Build a distributable Windows installer
+task package
 ```
+
+The headless daemon (`cmd/league-rpc`, no GUI, useful for debugging) builds separately: `go build ./cmd/league-rpc`.
 
 ## Platform Support
 

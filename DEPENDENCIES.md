@@ -96,36 +96,62 @@ This document explains the dependencies chosen for this project and why they wer
 
 ---
 
-## Future Dependencies
+### 5. lumberjack
+**Repository**: `gopkg.in/natefinch/lumberjack.v2`
+
+**Purpose**: Log file rotation
+
+**Why chosen**:
+- The GUI process has no attached console, so `zerolog` needs a file sink; lumberjack adds size-capped rotation with no extra moving parts
+- Small, single-purpose, no dependencies of its own
+
+**Key Features**:
+- Size-capped rotation with a configurable number of retained backups
+- Drop-in `io.Writer`, so it composes with `zerolog`'s multi-writer alongside the in-memory log ring the Help screen reads from
+
+---
+
+## Frontend Dependencies
 
 ### Wails v3
 **Repository**: `github.com/wailsapp/wails/v3`
 
-**Purpose**: Desktop application framework
+**Purpose**: Desktop application framework hosting the GUI and the daemon in one process
 
-**Why choosing**:
-- Native Go + Web frontend combination
-- React/TypeScript support
-- System tray integration
-- Native menus and dialogs
-- Auto-generated TypeScript bindings
-- Small binary size
+**Why chosen**:
+- Native Go + Web frontend combination, so the existing daemon and `internal/app` binding seam need no rewrite
+- System tray, native window menus/dialogs, and a built-in signed-update service, all needed by this project
+- Auto-generated TypeScript bindings for every `internal/app` method
 - No Electron overhead
 
 ---
 
-### shadcn/ui
-**Repository**: `https://ui.shadcn.com/`
+### React + TypeScript
+**Repository**: `https://react.dev/`
 
-**Purpose**: React UI component library
+**Purpose**: Frontend UI framework
 
-**Why choosing**:
-- Beautiful, modern components
-- Built on Radix UI (accessibility first)
-- Fully customizable with Tailwind CSS
-- Copy-paste components (not a dependency!)
-- TypeScript support
-- Active development and community
+**Why chosen**:
+- TypeScript-first, and the framework Wails' binding generation and examples are built around
+
+---
+
+### Tailwind CSS + Radix UI primitives (not shadcn/ui)
+**Repositories**: `https://tailwindcss.com/`, `@radix-ui/react-*`
+
+**Purpose**: Styling and accessible unstyled component behavior
+
+**Why chosen over shadcn/ui**:
+- shadcn/ui is copy-paste boilerplate on top of the same Radix primitives; for an app this size (a handful of screens), building the small component set directly on Radix costs little extra and avoids inheriting shadcn's now-widely-recognized default look
+- Radix supplies the accessible behavior (dialog, select, switch, tabs, label) that would otherwise need to be hand-rolled
+
+---
+
+### Supporting frontend libraries
+- **lucide-react**: icon set used throughout the shell and screens
+- **dompurify**: sanitizes the changelog markdown rendered in About before it hits the DOM
+- **@fontsource-variable/inter**: bundles the Inter variable font locally, no external font request
+- **Vitest + React Testing Library**: unit tests for template-preview rendering, config-form state, and patch-builder logic
 
 ---
 
@@ -159,9 +185,4 @@ See `go.mod` for the current, authoritative list of direct and indirect dependen
 
 ## License Compatibility
 
-All dependencies use permissive licenses:
-- lcu-gopher: MIT
-- gopsutil: BSD-3-Clause
-- zerolog: MIT
-
-All compatible with this project's MIT license.
+All dependencies use permissive licenses (MIT, BSD, Apache-2.0, or ISC), compatible with this project's MIT license. See each dependency's repository for its exact license.
