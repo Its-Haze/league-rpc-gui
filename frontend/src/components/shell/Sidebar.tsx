@@ -1,17 +1,31 @@
-import type { ReactNode } from "react";
+import { Eye, House, Info, LifeBuoy, MessageCircleQuestion, SlidersHorizontal, Wrench, type LucideIcon } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
+import { useStatus } from "../../hooks/useStatus";
+import { summarizeConnection, type ConnectionTone } from "../../lib/connectionStatus";
 import { DiscordIcon, GitHubIcon } from "../icons";
 import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL, openExternal } from "../../lib/links";
 import { SECTIONS, type Section } from "../../lib/route";
 import { THEME_OPTIONS, type ThemeSetting } from "../../lib/theme";
 import { Select } from "../ui";
 
-const LABELS: Record<Section, string> = {
-  home: "Home",
-  display: "Display",
-  behavior: "Behavior",
-  advanced: "Advanced",
-  help: "Help",
-  about: "About",
+const NAV: Record<Section, { label: string; icon: LucideIcon }> = {
+  home: { label: "Home", icon: House },
+  display: { label: "Display", icon: Eye },
+  behavior: { label: "Behavior", icon: SlidersHorizontal },
+  advanced: { label: "Advanced", icon: Wrench },
+  faq: { label: "FAQ", icon: MessageCircleQuestion },
+  help: { label: "Help", icon: LifeBuoy },
+  about: { label: "About", icon: Info },
+};
+
+// Splits the nav into settings above and reference below. Named by the
+// section it precedes, so reordering SECTIONS can't strand the rule.
+const DIVIDER_BEFORE: Section = "faq";
+
+const TONE_DOT: Record<ConnectionTone, string> = {
+  ok: "bg-ok",
+  warn: "bg-warn",
+  idle: "bg-muted",
 };
 
 export interface SidebarProps {
@@ -23,37 +37,59 @@ export interface SidebarProps {
   themeDisabled?: boolean;
 }
 
-// Left nav across the six sections, plus the theme picker: the one setting
-// worth reaching from anywhere, so it lives outside any single screen.
+// Left nav across every section, plus a theme shortcut. The full picker
+// lives on Behavior; this one is here for reaching it from anywhere.
 export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisabled }: SidebarProps) {
+  const connection = summarizeConnection(useStatus());
+
   return (
     <nav className="border-border bg-surface flex w-44 shrink-0 flex-col border-r p-3">
       <div className="flex flex-1 flex-col gap-1">
         {SECTIONS.map((section) => {
           const isActive = section === active;
+          const { label, icon: Icon } = NAV[section];
           return (
-            <button
-              key={section}
-              onClick={() => onNavigate(section)}
-              aria-current={isActive ? "page" : undefined}
-              className={
-                "rounded-sm px-3 py-2 text-left text-sm font-medium transition-colors " +
-                (isActive
-                  ? "bg-surface-raised text-accent"
-                  : "text-muted hover:bg-surface-raised")
-              }
-            >
-              {LABELS[section]}
-            </button>
+            <Fragment key={section}>
+              {section === DIVIDER_BEFORE && <hr className="border-border my-2" />}
+              <button
+                onClick={() => onNavigate(section)}
+                aria-current={isActive ? "page" : undefined}
+                className={
+                  "flex items-center gap-2 rounded-sm px-2 py-1 text-left text-sm font-medium transition-colors " +
+                  (isActive
+                    ? "bg-surface-raised text-text"
+                    : "text-muted hover:bg-surface-raised hover:text-text")
+                }
+              >
+                <span
+                  className={
+                    "grid size-8 shrink-0 place-items-center rounded-md transition-colors " +
+                    (isActive ? "bg-accent/15 text-accent" : "text-accent/70")
+                  }
+                >
+                  <Icon className="size-5" />
+                </span>
+                {label}
+              </button>
+            </Fragment>
           );
         })}
       </div>
 
+      <button
+        onClick={() => onNavigate("home")}
+        title="Open Home for the full presence preview"
+        className="text-muted hover:text-text flex items-center gap-2 px-2 pb-2 text-xs transition-colors"
+      >
+        <span className={"size-2 shrink-0 rounded-full " + TONE_DOT[connection.tone]} />
+        {connection.label}
+      </button>
+
       <div className="border-border flex flex-col gap-2 border-t pt-2">
-        <SidebarLink href={DISCORD_COMMUNITY_URL} icon={<DiscordIcon className="size-4" />}>
+        <SidebarLink href={DISCORD_COMMUNITY_URL} icon={<DiscordIcon className="size-5" />}>
           Discord
         </SidebarLink>
-        <SidebarLink href={GITHUB_REPO_URL} icon={<GitHubIcon className="size-4" />}>
+        <SidebarLink href={GITHUB_REPO_URL} icon={<GitHubIcon className="size-5" />}>
           GitHub
         </SidebarLink>
         <Select
@@ -76,9 +112,9 @@ function SidebarLink({ href, icon, children }: { href: string; icon: ReactNode; 
         e.preventDefault();
         openExternal(href);
       }}
-      className="text-muted hover:bg-surface-raised hover:text-text flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium transition-colors"
+      className="text-muted hover:bg-surface-raised hover:text-text flex items-center gap-2 rounded-sm px-2 py-1 text-sm font-medium transition-colors"
     >
-      {icon}
+      <span className="grid size-8 shrink-0 place-items-center">{icon}</span>
       {children}
     </a>
   );

@@ -1,3 +1,5 @@
+import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+
 // Config.theme is a free-form string from the backend; narrow it defensively.
 export const THEME_SETTINGS = ["system", "light", "dark"] as const;
 
@@ -14,6 +16,14 @@ export const THEME_OPTIONS = THEME_SETTINGS.map((value) => ({
   value,
   label: value[0].toUpperCase() + value.slice(1),
 }));
+
+// Icons live on the same source list as the values, so a picker can never
+// render a theme without one.
+export const THEME_ICONS: Record<ThemeSetting, LucideIcon> = {
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+};
 
 // resolveTheme is the pure logic the applied-theme hook and its tests share:
 // "system" tracks the OS, an explicit setting wins outright.

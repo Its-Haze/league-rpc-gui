@@ -8,3 +8,4 @@ export type { TabItem } from "./Tabs";
 export { Field } from "./Field";
 export { SettingsCard } from "./SettingsCard";
 export { DebouncedTextField } from "./DebouncedTextField";
+export { ThemePicker } from "./ThemePicker";

@@ -1,20 +1,13 @@
-import { Monitor, Moon, Palette, Power, Sun } from "lucide-react";
+import { Palette, Power } from "lucide-react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import type { Config } from "../../../bindings/github.com/its-haze/league-rpc/internal/config/models";
 import { withLaunchAtStartup } from "../../lib/behaviorPatch";
-import { THEME_SETTINGS, type ThemeSetting } from "../../lib/theme";
-import { Toggle } from "../ui";
+import { Toggle, ThemePicker } from "../ui";
 
 export interface StartupStepProps {
   cfg: Config;
   applyPatch: (patch: Partial<Config>) => Promise<void>;
 }
-
-const THEME_ICONS: Record<ThemeSetting, typeof Monitor> = {
-  system: Monitor,
-  light: Sun,
-  dark: Moon,
-};
 
 // Onboarding's third screen: settings about the app itself, not the presence it sends.
 export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
@@ -33,27 +26,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
             <p className="text-muted text-sm">System follows whatever Windows is set to.</p>
           </div>
         </div>
-        <div role="radiogroup" aria-label="Theme" className="border-border bg-surface-raised inline-flex shrink-0 items-center gap-1 rounded-lg border p-1">
-          {THEME_SETTINGS.map((setting) => {
-            const Icon = THEME_ICONS[setting];
-            const active = cfg.theme === setting;
-            return (
-              <button
-                key={setting}
-                role="radio"
-                aria-checked={active}
-                onClick={() => void applyPatch({ theme: setting })}
-                className={
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors " +
-                  (active ? "bg-surface text-accent" : "text-muted hover:text-text")
-                }
-              >
-                <Icon className="size-4" />
-                {setting}
-              </button>
-            );
-          })}
-        </div>
+        <ThemePicker value={cfg.theme} onChange={(t) => void applyPatch({ theme: t })} />
       </section>
 
       <section className="border-accent/40 bg-accent/5 flex items-center justify-between gap-6 rounded-lg border p-5 text-left">

@@ -1,5 +1,5 @@
-// The six sidebar sections. Order here is the order they render in the nav.
-export const SECTIONS = ["home", "display", "behavior", "advanced", "help", "about"] as const;
+// The sidebar sections. Order here is the order they render in the nav.
+export const SECTIONS = ["home", "display", "behavior", "advanced", "faq", "help", "about"] as const;
 
 export type Section = (typeof SECTIONS)[number];
 

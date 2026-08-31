@@ -1,4 +1,4 @@
-import { CircleSlash, DownloadCloud, PanelTopClose, Power } from "lucide-react";
+import { CircleSlash, DownloadCloud, Palette, PanelTopClose, Power } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   GetStatus,
@@ -9,7 +9,7 @@ import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
 import { useStatus } from "../../hooks/useStatus";
 import { withCloseAction, withLaunchAtStartup, type CloseAction } from "../../lib/behaviorPatch";
-import { Button, Select, SettingsCard, Toggle, type SelectOption } from "../ui";
+import { Button, Select, SettingsCard, ThemePicker, Toggle, type SelectOption } from "../ui";
 
 const CLOSE_ACTIONS: SelectOption[] = [
   { value: "ask", label: "Ask me every time" },
@@ -17,8 +17,8 @@ const CLOSE_ACTIONS: SelectOption[] = [
   { value: "quit", label: "Quit League RPC" },
 ];
 
-// The Behavior section: pausing presence, start-with-Windows and what closing
-// the window does, and the update-check controls.
+// The Behavior section: how the app looks and behaves around the game.
+// Appearance, pausing, startup and close handling, and the update check.
 export function BehaviorScreen() {
   const { cfg, error, applyPatch } = useSettings();
   const defaults = useDefaultConfig();
@@ -53,6 +53,20 @@ export function BehaviorScreen() {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Behavior</h1>
       {error && <p className="text-danger text-sm">{error}</p>}
+
+      <SettingsCard
+        icon={Palette}
+        title="Appearance"
+        description="System follows whatever Windows is set to. The sidebar has the same switch, for when you just want it dark right now."
+        onReset={defaults ? () => void applyPatch({ theme: defaults.theme }) : undefined}
+        isDefault={!defaults || cfg.theme === defaults.theme}
+        action={
+          <ThemePicker
+            value={cfg.theme}
+            onChange={(t) => void applyPatch({ theme: t })}
+          />
+        }
+      />
 
       <SettingsCard
         icon={CircleSlash}

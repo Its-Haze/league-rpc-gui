@@ -11,6 +11,7 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { DisplayScreen } from "../screens/DisplayScreen";
 import { BehaviorScreen } from "../screens/BehaviorScreen";
 import { AdvancedScreen } from "../screens/AdvancedScreen";
+import { FaqScreen } from "../screens/FaqScreen";
 import { HelpScreen } from "../screens/HelpScreen";
 import { AboutScreen } from "../screens/AboutScreen";
 
@@ -53,6 +54,7 @@ export function AppShell({ theme, onThemeChange, themeDisabled, error }: AppShel
               {section === "display" && <DisplayScreen />}
               {section === "behavior" && <BehaviorScreen />}
               {section === "advanced" && <AdvancedScreen />}
+              {section === "faq" && <FaqScreen />}
               {section === "help" && <HelpScreen />}
               {section === "about" && <AboutScreen />}
             </main>
