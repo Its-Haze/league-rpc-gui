@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -14,10 +15,12 @@ type fakeIpcConn struct {
 	sendErr   error
 	closed    bool
 	sendCalls int
+	sent      [][]byte
 }
 
 func (f *fakeIpcConn) Send(opcode int32, payload []byte) ([]byte, error) {
 	f.sendCalls++
+	f.sent = append(f.sent, append([]byte(nil), payload...))
 	if f.sendErr != nil {
 		return nil, f.sendErr
 	}
@@ -42,6 +45,36 @@ func newTestClient(t *testing.T, conns ...*fakeIpcConn) *Client {
 		return conn, nil
 	}
 	return c
+}
+
+// Discord only drops an activity on a null; an empty activity object still
+// registers one, showing the bare app name with a timer.
+func TestClient_ClearPresenceSendsNullActivity(t *testing.T) {
+	conn := &fakeIpcConn{}
+	c := newTestClient(t, conn)
+
+	if err := c.Connect(); err != nil {
+		t.Fatalf("Connect() failed: %v", err)
+	}
+	if err := c.UpdatePresence(&RPCData{Details: "In Game"}); err != nil {
+		t.Fatalf("UpdatePresence() failed: %v", err)
+	}
+	if err := c.ClearPresence(); err != nil {
+		t.Fatalf("ClearPresence() failed: %v", err)
+	}
+
+	var frame struct {
+		Args struct {
+			Activity *json.RawMessage `json:"activity"`
+		} `json:"args"`
+	}
+	last := conn.sent[len(conn.sent)-1]
+	if err := json.Unmarshal(last, &frame); err != nil {
+		t.Fatalf("failed to parse the SET_ACTIVITY frame: %v", err)
+	}
+	if frame.Args.Activity != nil && string(*frame.Args.Activity) != "null" {
+		t.Fatalf("expected a null activity on clear, got %s", *frame.Args.Activity)
+	}
 }
 
 func TestClient_ConnectThenUpdatePresenceSucceeds(t *testing.T) {

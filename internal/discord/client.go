@@ -113,7 +113,7 @@ func (c *Client) UpdatePresence(rpcData *RPCData) error {
 		Str("state", rpcData.State).
 		Msg("Updating Discord presence")
 
-	if err := c.setActivity(activityPayload{
+	if err := c.setActivity(&activityPayload{
 		Details: rpcData.Details,
 		State:   rpcData.State,
 		Assets: &activityAssets{
@@ -139,7 +139,9 @@ func (c *Client) ClearPresence() error {
 
 	c.logger.Debug().Msg("Clearing Discord presence")
 
-	if err := c.setActivity(activityPayload{}); err != nil {
+	// Discord clears only on a null activity; an empty object still registers
+	// one, which renders as the bare app name with a timer.
+	if err := c.setActivity(nil); err != nil {
 		return fmt.Errorf("failed to clear Discord activity: %w", err)
 	}
 	return nil
@@ -147,7 +149,7 @@ func (c *Client) ClearPresence() error {
 
 // setActivity sends a SET_ACTIVITY frame. It marks the client disconnected
 // on any transport failure, so IsConnected() reflects reality immediately.
-func (c *Client) setActivity(activity activityPayload) error {
+func (c *Client) setActivity(activity *activityPayload) error {
 	c.mu.Lock()
 	conn := c.conn
 	connected := c.connected
@@ -166,7 +168,7 @@ func (c *Client) setActivity(activity activityPayload) error {
 		Cmd: "SET_ACTIVITY",
 		Args: activityArgs{
 			Pid:      os.Getpid(),
-			Activity: &activity,
+			Activity: activity,
 		},
 		Nonce: nonce,
 	})
