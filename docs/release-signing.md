@@ -1,9 +1,16 @@
 # Release signing
 
-Every tagged release publishes three assets: the binary, `SHA256SUMS` (its
-sha256 digest), and `SHA256SUMS.sig` (an ed25519 signature over that digest).
-`internal/updates` verifies both before installing an update; see
-[ADR-0005](adr/0005-in-app-update-via-signed-binary-swap.md).
+Every tagged release publishes four assets: the NSIS installer (`*-setup.exe`,
+what a person downloads and runs), the raw binary (`internal/updates.ReleaseAsset`,
+named `.bin` on purpose so it doesn't look double-clickable next to the
+installer), `SHA256SUMS` (its sha256 digest), and `SHA256SUMS.sig` (an ed25519
+signature over that digest). `internal/updates` verifies both before
+installing an update; see
+[ADR-0005](adr/0005-in-app-update-via-signed-binary-swap.md). Only the
+installer and the raw binary are meant for anyone to touch directly, and only
+the installer is meant for a human — the release notes say so, and the raw
+binary's `.bin` extension means Windows won't just run it if someone
+double-clicks it anyway.
 
 The workflow (`.github/workflows/release.yml`) runs on every `v*` tag push:
 a `build` job produces the binary, a `sign` job (restricted to the

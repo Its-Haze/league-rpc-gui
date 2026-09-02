@@ -14,7 +14,7 @@ env:
   WAILS_VERSION: "v3.0.0-beta.15"
   TASK_VERSION: "v3.53.1"
   # internal/updates.ReleaseAsset; a regression test keeps the two in step.
-  RELEASE_ASSET: "league-rpc-windows-amd64.exe"
+  RELEASE_ASSET: "league-rpc-windows-amd64.bin"
 
 jobs:
   build:
@@ -126,13 +126,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          set -euo pipefail
           prerelease_flag=""
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             prerelease_flag="--prerelease"
           fi
+          installer=$(basename dist/*-setup.exe)
+          notes="Download **$installer** and run it to install League RPC.
+
+          The other files here (\`$RELEASE_ASSET\`, \`SHA256SUMS\`, \`SHA256SUMS.sig\`) are used internally by the in-app auto-updater; you don't need to download them yourself."
           gh release create "$GITHUB_REF_NAME" \
             dist/* SHA256SUMS SHA256SUMS.sig \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
+            --notes "$notes" \
             --generate-notes \
             $prerelease_flag

@@ -11,9 +11,8 @@ import (
 // RepoSlug is the GitHub repository the App Update flow pulls releases from.
 const RepoSlug = "Its-Haze/league-rpc-gui"
 
-// ReleaseAsset is the published binary the updater downloads. The provider's
-// matcher skips any asset whose name lacks the platform and the architecture.
-const ReleaseAsset = "league-rpc-windows-amd64.exe"
+// ReleaseAsset is the published binary the updater downloads. Named .bin
+const ReleaseAsset = "league-rpc-windows-amd64.bin"
 
 // ChecksumAsset is the sidecar every release publishes alongside the binary.
 // Its ed25519 signature is verified against publicKeyPEM before any swap.
