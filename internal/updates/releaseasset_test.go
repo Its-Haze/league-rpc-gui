@@ -18,7 +18,7 @@ func TestReleaseAssetIsSelectedByTheProviderMatcher(t *testing.T) {
 	assets := []github.ReleaseAsset{
 		{Name: ChecksumAsset},
 		{Name: SignatureAsset},
-		{Name: "league-rpc-1.2.3-amd64-installer.exe"},
+		{Name: "league-rpc-1.2.3-setup.exe"},
 		{Name: ReleaseAsset},
 	}
 	req := wupdater.CheckRequest{Platform: "windows", Arch: "amd64"}
