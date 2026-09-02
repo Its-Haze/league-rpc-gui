@@ -266,7 +266,7 @@ func TestApp_GetPreviewAssets_ReturnsNonEmptyURLs(t *testing.T) {
 	a := New(config.NewStore(config.DefaultConfig()), &fakePauser{})
 
 	got := a.GetPreviewAssets()
-	if got.ChampionSkinURL == "" || got.RankEmblemURL == "" || got.LeagueLogoURL == "" {
+	if got.ChampionSkinURL == "" || got.TFTCompanionURL == "" || got.RankEmblemURL == "" || got.LeagueLogoURL == "" {
 		t.Fatalf("GetPreviewAssets() = %+v, want every URL populated", got)
 	}
 }

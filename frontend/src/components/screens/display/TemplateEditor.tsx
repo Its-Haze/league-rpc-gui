@@ -57,7 +57,7 @@ function previewImages(
     case "tft-in-game":
       // BuildTFTInGamePresence: TFT companion large image, league logo small
       return {
-        largeImage: assets.champion_skin_url,
+        largeImage: assets.tft_companion_url,
         smallImage: showRank ? assets.rank_emblem_url : assets.league_logo_url,
       };
     case "spectating":

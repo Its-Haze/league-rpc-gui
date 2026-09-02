@@ -314,6 +314,7 @@ func (a *App) GetDisplayPreview(ctx string, tmpl config.TemplatePair, showStats 
 // preview uses to approximate a real presence card.
 type PreviewAssets struct {
 	ChampionSkinURL string `json:"champion_skin_url"`
+	TFTCompanionURL string `json:"tft_companion_url"`
 	RankEmblemURL   string `json:"rank_emblem_url"`
 	LeagueLogoURL   string `json:"league_logo_url"`
 	ProfileIconURL  string `json:"profile_icon_url"`
@@ -323,10 +324,14 @@ type PreviewAssets struct {
 // Giftwrapped Poro (Snowdown 2013), used as the sample profile icon below.
 const previewProfileIconID = 588
 
+// Ossia, the default starter Little Legend, used as the sample TFT companion below.
+const previewTFTCompanionIconPath = "loadouts/companions/tooltip_akalidragon_ossia_tier1.png"
+
 // GetPreviewAssets returns those sample image URLs.
 func (a *App) GetPreviewAssets() PreviewAssets {
 	return PreviewAssets{
 		ChampionSkinURL: discord.GetChampionSkinURL("Chogath", 1),
+		TFTCompanionURL: discord.GetTFTCompanionURL(previewTFTCompanionIconPath),
 		RankEmblemURL:   discord.GetRankEmblemURL(types.TierGold),
 		LeagueLogoURL:   discord.GetLeagueLogoURL(),
 		ProfileIconURL:  discord.GetProfileIconURL(previewProfileIconID),
