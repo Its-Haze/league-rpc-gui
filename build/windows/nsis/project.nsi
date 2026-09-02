@@ -42,6 +42,11 @@ ManifestDPIAware true
 !define MUI_FINISHPAGE_NOAUTOCLOSE # Wait on the INSTFILES page so the user can take a look into the details of the installation steps
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
 
+# Overrides MUI's default welcome text, which warns about closing other apps
+# and rebooting for shared system files. This install is per-user, touches no
+# shared files, and never needs a reboot, so that warning is just wrong here.
+!define MUI_WELCOMEPAGE_TEXT "Setup will guide you through the installation of ${INFO_PRODUCTNAME}.$\r$\n$\r$\nClick Next to continue."
+
 # A machine-scope installer runs elevated, so launching from it would hand the
 # app an admin token it should never have.
 !if "${WAILS_INSTALL_SCOPE}" == "user"
