@@ -40,7 +40,11 @@ jobs:
 
       - name: Install NSIS
         shell: bash
-        run: command -v makensis >/dev/null 2>&1 || choco install nsis -y --no-progress
+        run: |
+          set -euo pipefail
+          command -v makensis >/dev/null 2>&1 || choco install nsis -y --no-progress
+          # Choco updates the machine PATH registry value, which a fresh choco
+          echo "C:\Program Files (x86)\NSIS" >> "$GITHUB_PATH"
 
       # Builds the binary and the per-user NSIS installer from it.
       - name: Package
