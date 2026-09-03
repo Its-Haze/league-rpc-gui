@@ -30,7 +30,7 @@ export function SettingsCard({ icon: Icon, title, description, action, children,
         (highlighted ? "border-accent/40 bg-accent/5" : "border-border bg-surface")
       }
     >
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex items-center justify-between gap-6">
         <div className="flex items-start gap-3">
           <Icon className="text-accent mt-0.5 size-5 shrink-0" />
           <div className="flex flex-col gap-1">

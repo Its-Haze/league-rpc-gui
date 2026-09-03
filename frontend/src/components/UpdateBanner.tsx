@@ -146,7 +146,7 @@ export default function UpdateBanner() {
 
       {showChangelog && (
         <div
-          className="border-border prose prose-sm max-w-none border-t pt-3"
+          className="changelog border-border text-sm border-t pt-3"
           onClick={handleExternalLinkClick}
           dangerouslySetInnerHTML={{
             __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog…")),

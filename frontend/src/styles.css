@@ -76,6 +76,50 @@ body {
   background: transparent;
 }
 
+/* Styles the markdown lib/markdown.ts renders (release notes, changelog). */
+.changelog {
+  line-height: 1.6;
+}
+
+.changelog p {
+  margin-top: 0.5rem;
+}
+
+.changelog p:first-child {
+  margin-top: 0;
+}
+
+.changelog h1,
+.changelog h2,
+.changelog h3,
+.changelog h4 {
+  margin-top: 0.75rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.changelog h1:first-child,
+.changelog h2:first-child,
+.changelog h3:first-child,
+.changelog h4:first-child {
+  margin-top: 0;
+}
+
+.changelog ul {
+  margin-top: 0.5rem;
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.changelog li + li {
+  margin-top: 0.25rem;
+}
+
+.changelog a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 /* Onboarding step transitions: no animation library, just a fade-and-rise
    that replays whenever React remounts the keyed step container. */
 @keyframes onboarding-step-in {

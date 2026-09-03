@@ -1,38 +1,29 @@
-import { Gamepad2, Globe, Info, Lightbulb, ScrollText, ShieldCheck, UserRound } from "lucide-react";
+import { Gamepad2, Globe, Info, Lightbulb, ShieldCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import DOMPurify from "dompurify";
-import {
-  GetChangelog,
-  GetVersion,
-} from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
+import { GetVersion } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 import { useCheckForUpdates } from "../../hooks/useCheckForUpdates";
 import {
   AUTHOR_WEBSITE_URL,
   DISCORD_COMMUNITY_URL,
   GITHUB_PROFILE_URL,
-  handleExternalLinkClick,
   openExternal,
 } from "../../lib/links";
-import { renderMarkdown } from "../../lib/markdown";
 import { DiscordIcon, GitHubIcon } from "../icons";
 import { Button, SettingsCard } from "../ui";
 import UpdateBanner from "../UpdateBanner";
 
-// The About section: what the app is and who wrote it, the version and a
-// manual update check, and the latest release's changelog.
+// The About section: what the app is, who wrote it, and the running version.
 export function AboutScreen() {
   const [version, setVersion] = useState("");
-  const [changelog, setChangelog] = useState<string | null>(null);
   const { checking, result: checkResult, check: handleCheck } = useCheckForUpdates();
 
   useEffect(() => {
     GetVersion().then(setVersion).catch(() => {});
-    GetChangelog().then(setChangelog).catch(() => setChangelog("changelog unavailable"));
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <h1 className="text-xl font-semibold">About</h1>
 
       <SettingsCard
@@ -51,13 +42,13 @@ export function AboutScreen() {
 
       <UpdateBanner />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-2">
         <SettingsCard
           icon={Gamepad2}
           title="What it does"
           description="Turns what you're doing in League into your Discord status."
         >
-          <p className="text-muted pt-1 text-sm">
+          <p className="pt-1 text-sm leading-relaxed">
             Your queue, champion and skin, rank, and live KDA go out as you play, and follow along
             as the session moves from lobby to champ select to the match itself.
           </p>
@@ -68,7 +59,7 @@ export function AboutScreen() {
           title="Why it exists"
           description="Discord knows you're playing League. It doesn't know much else."
         >
-          <p className="text-muted pt-1 text-sm">
+          <p className="pt-1 text-sm leading-relaxed">
             Built-in detection gives you the game's name and little more: no skin, no rank, no
             score, no way to word it yourself. League RPC fills in the rest.
           </p>
@@ -79,7 +70,7 @@ export function AboutScreen() {
           title="Vanguard safe"
           description="No game files are touched, and nothing here helps you win."
         >
-          <p className="text-muted pt-1 text-sm">
+          <p className="pt-1 text-sm leading-relaxed">
             League RPC reads the same local client API that Porofessor and Blitz.gg read, and turns
             what it finds into a Discord status. Nothing is injected, no files are modified, and
             everything it knows is already on your own screen.
@@ -102,20 +93,6 @@ export function AboutScreen() {
           </AboutLink>
         </SettingsCard>
       </div>
-
-      <SettingsCard
-        icon={ScrollText}
-        title="What's new"
-        description="Release notes for the latest version."
-      >
-        <div
-          className="prose prose-sm max-w-none text-sm"
-          onClick={handleExternalLinkClick}
-          dangerouslySetInnerHTML={{
-            __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog…")),
-          }}
-        />
-      </SettingsCard>
     </div>
   );
 }
