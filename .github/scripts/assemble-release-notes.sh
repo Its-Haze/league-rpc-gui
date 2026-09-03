@@ -12,6 +12,9 @@ fi
 
 installer=$(basename dist/*-setup.exe)
 installer_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$installer"
+# Display name only, no version in it; installer_url above still points at
+# the real versioned asset.
+installer_display="league-rpc-setup.exe"
 
 previous_tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
 if [[ -n "$previous_tag" ]]; then
@@ -27,9 +30,9 @@ Got questions? Join Discord: https://discord.haze.sh
 
 ### Download
 
-Download and run **[$installer]($installer_url)** to install League RPC.
+Download and run **[$installer_display]($installer_url)** to install League RPC.
 
-Already have it installed? no need to install it again - update it directly in the app instead.
+Already have it installed? You don't need this. League RPC checks for updates on its own, and you can install them right from the About screen.
 
 ---
 
@@ -44,7 +47,7 @@ cat >footer.md <<FOOTER
 <details>
 <summary>Installation</summary>
 
-1. Download **$installer** from the Assets section below, or the link above.
+1. Download **$installer_display** from the Assets section below, or the link above.
 2. Run it and go through the setup like any other installer.
 3. League RPC starts automatically and lives in your system tray from then on.
 
