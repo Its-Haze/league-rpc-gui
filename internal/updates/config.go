@@ -23,6 +23,7 @@ const ChecksumAsset = "SHA256SUMS"
 const CheckInterval = 6 * time.Hour
 
 // publicKeyPEM is the release-signature trust root; see docs/release-signing.md.
+//
 //go:embed keys/update-public.pem
 var publicKeyPEM []byte
 

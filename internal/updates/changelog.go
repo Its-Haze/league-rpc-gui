@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -36,8 +37,27 @@ func newChangelogFetcher(doer HTTPDoer, repo string) *changelogFetcher {
 	return &changelogFetcher{doer: doer, repo: repo}
 }
 
-// fetch returns the latest release's Markdown body. An empty body (a release
-// published with no notes) comes back as a short placeholder, not an error.
+// changelogStartMarker and changelogEndMarker bound the curated
+const (
+	changelogStartMarker = "<!-- changelog:start -->"
+	changelogEndMarker   = "<!-- changelog:end -->"
+)
+
+// extractChangelog returns the text between the changelog markers, trimmed.
+func extractChangelog(body string) string {
+	start := strings.Index(body, changelogStartMarker)
+	if start < 0 {
+		return body
+	}
+	start += len(changelogStartMarker)
+	end := strings.Index(body[start:], changelogEndMarker)
+	if end < 0 {
+		return body
+	}
+	return strings.TrimSpace(body[start : start+end])
+}
+
+// fetch returns the latest release's Markdown body, trimmed down to the
 func (f *changelogFetcher) fetch(ctx context.Context) (string, error) {
 	url := "https://api.github.com/repos/" + f.repo + "/releases/latest"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -67,5 +87,5 @@ func (f *changelogFetcher) fetch(ctx context.Context) (string, error) {
 	if payload.Body == "" {
 		return "No release notes for this version.", nil
 	}
-	return payload.Body, nil
+	return extractChangelog(payload.Body), nil
 }

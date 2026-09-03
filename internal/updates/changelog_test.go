@@ -2,6 +2,7 @@ package updates
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -25,6 +26,25 @@ func TestChangelog_ReturnsReleaseBody(t *testing.T) {
 	got := c.Changelog(context.Background())
 	if got != "## What changed\n- stuff" {
 		t.Fatalf("Changelog = %q, want the release body", got)
+	}
+}
+
+func TestChangelog_StripsEverythingOutsideTheMarkers(t *testing.T) {
+	body := "## Welcome\n\nDownload and install instructions here.\n\n" +
+		changelogStartMarker + "\n### Highlights\n- did a thing\n" + changelogEndMarker +
+		"\n\n<details>install steps</details>"
+	payload, err := json.Marshal(map[string]string{"body": body})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	c := coordinatorWithDoer(doerFunc(func(*http.Request) (*http.Response, error) {
+		return jsonResponse(200, string(payload)), nil
+	}))
+
+	got := c.Changelog(context.Background())
+	want := "### Highlights\n- did a thing"
+	if got != want {
+		t.Fatalf("Changelog = %q, want %q", got, want)
 	}
 }
 

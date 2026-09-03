@@ -111,6 +111,8 @@ jobs:
     needs: [build, sign]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: release-files
@@ -120,6 +122,12 @@ jobs:
         with:
           name: checksums
           path: .
+
+      # The curated "what changed" content lives in a file per tag, not typed
+      - name: Assemble release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/assemble-release-notes.sh
 
       - name: Publish GitHub Release
         env:
@@ -131,14 +139,9 @@ jobs:
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             prerelease_flag="--prerelease"
           fi
-          installer=$(basename dist/*-setup.exe)
-          notes="Download **$installer** and run it to install League RPC.
-
-          The other files here (\`$RELEASE_ASSET\`, \`SHA256SUMS\`, \`SHA256SUMS.sig\`) are used internally by the in-app auto-updater; you don't need to download them yourself."
           gh release create "$GITHUB_REF_NAME" \
             dist/* SHA256SUMS SHA256SUMS.sig \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
-            --notes "$notes" \
-            --generate-notes \
+            --notes-file assembled-notes.md \
             $prerelease_flag
