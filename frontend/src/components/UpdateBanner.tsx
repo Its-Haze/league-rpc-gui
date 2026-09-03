@@ -40,7 +40,11 @@ export default function UpdateBanner() {
     GetUpdateStatus().then(setStatus).catch(() => {});
 
     const offs = [
-      Events.On(EVENT_CHANGED, (ev: { data: UpdateStatus }) => setStatus(ev.data)),
+      Events.On(EVENT_CHANGED, (ev: { data: UpdateStatus }) => {
+        setStatus(ev.data);
+        // Dismissal lasts only until the next check, whatever triggers it.
+        setDismissedVersion(null);
+      }),
       Events.On(EVENT_DOWNLOAD_PROGRESS, (ev: { data: Progress }) => {
         setPhase("downloading");
         setProgress(ev.data);
@@ -115,7 +119,10 @@ export default function UpdateBanner() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleToggleChangelog} className="text-muted underline">
+          <button
+            onClick={handleToggleChangelog}
+            className="text-muted hover:text-text transition-colors"
+          >
             {showChangelog ? "Hide changelog" : "Changelog"}
           </button>
           {phase === "ready" ? (
@@ -137,7 +144,7 @@ export default function UpdateBanner() {
           <button
             onClick={() => setDismissedVersion(status.version)}
             aria-label="Dismiss"
-            className="text-muted px-1"
+            className="text-muted hover:text-text px-2 py-1 text-base transition-colors"
           >
             ×
           </button>
@@ -155,7 +162,11 @@ export default function UpdateBanner() {
       )}
 
       <div className="text-muted flex items-center gap-3">
-        <button onClick={handleCheck} disabled={checking} className="underline disabled:opacity-60">
+        <button
+          onClick={handleCheck}
+          disabled={checking}
+          className="hover:text-text transition-colors disabled:opacity-60"
+        >
           {checking ? "Checking…" : "Check for updates"}
         </button>
       </div>
