@@ -27,6 +27,14 @@ const logLineEvent = "log:line"
 // dialog. Only emitted while close_action is "ask".
 const closeRequestedEvent = "window:close-requested"
 
+// navigateAboutEvent asks the frontend to switch to the About screen. Emitted
+// when the user clicks the update-available toast notification.
+const navigateAboutEvent = "navigate:about"
+
+// updateReadyNotificationID identifies the toast shown once a new version is
+// first discovered, distinguishing its click handler from future toasts.
+const updateReadyNotificationID = "update-ready"
+
 // guiService adapts internal/app (plain Go, Wails-free) to a Wails service.
 type guiService struct {
 	app *app.App
@@ -127,9 +135,9 @@ func (s *guiService) CheckForUpdates(ctx context.Context) (app.UpdateStatus, err
 	return s.app.CheckForUpdates(ctx)
 }
 
-// StartUpdate downloads, verifies, and swaps the pending release.
-func (s *guiService) StartUpdate(ctx context.Context) error {
-	return s.app.StartUpdate(ctx)
+// RetryUpdate downloads, verifies, and swaps the pending release by hand.
+func (s *guiService) RetryUpdate(ctx context.Context) error {
+	return s.app.RetryUpdate(ctx)
 }
 
 // RestartForUpdate relaunches into the freshly swapped binary.

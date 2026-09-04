@@ -28,9 +28,11 @@ func (a updateAdapter) OnChange(fn func(app.UpdateStatus)) {
 
 func convertStatus(s updates.Status) app.UpdateStatus {
 	return app.UpdateStatus{
-		Available: s.Available,
-		Version:   s.Version,
-		Notes:     s.Notes,
-		LastError: s.LastError,
+		Available:   s.Available,
+		Version:     s.Version,
+		Notes:       s.Notes,
+		LastError:   s.LastError,
+		Downloading: s.Downloading,
+		Ready:       s.Ready,
 	}
 }

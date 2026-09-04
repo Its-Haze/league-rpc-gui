@@ -3,9 +3,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
+	"sync"
 
 	"github.com/its-haze/league-rpc/frontend"
 	"github.com/its-haze/league-rpc/internal/app"
@@ -19,6 +21,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/icons"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
 
 // singleInstanceID keeps a second launch from starting its own daemon; it
@@ -103,6 +106,23 @@ func main() {
 	svc := newGUIService(guiApp)
 	wailsApp.RegisterService(application.NewService(svc))
 
+	// Registered so an update-ready toast can be pushed from OnUpdateChange
+	// below; clicking it brings the window forward to the About screen.
+	notifier := notifications.New()
+	wailsApp.RegisterService(application.NewService(notifier))
+	notifier.OnNotificationResponse(func(result notifications.NotificationResult) {
+		if result.Response.ID != updateReadyNotificationID {
+			return
+		}
+		application.InvokeAsync(func() {
+			if mainWindow != nil {
+				mainWindow.Show()
+				mainWindow.Focus()
+			}
+			wailsApp.Event.Emit(navigateAboutEvent)
+		})
+	})
+
 	// Start the daemon only after application.New has run the single-instance
 	// guard; a second launch exits inside New and never touches Discord.
 	go func() {
@@ -124,13 +144,6 @@ func main() {
 		wailsApp.Event.Emit(statusChangedEvent, s)
 	})
 	go guiApp.RunStatus(ctx)
-
-	// Push App Update status to the frontend on change, and drive the launch
-	// check plus the periodic re-check. Both run until the app shuts down.
-	guiApp.OnUpdateChange(func(s app.UpdateStatus) {
-		wailsApp.Event.Emit(updateChangedEvent, s)
-	})
-	go guiApp.RunUpdates(ctx)
 
 	// Apply a start-with-Windows toggle to the registry the moment it changes,
 	// not just on the next launch.
@@ -185,7 +198,39 @@ func main() {
 		systemTray.SetTemplateIcon(icons.SystrayMacTemplate)
 	}
 	systemTray.OnClick(tray.showWindow)
-	systemTray.SetMenu(buildTrayMenu(wailsApp, tray))
+	systemTray.SetMenu(buildTrayMenu(wailsApp, tray, guiApp))
+
+	// Push App Update status to the frontend and the tray tooltip, and fire a
+	// one-time toast once a new version is first discovered (see updates.Coordinator).
+	var notifyMu sync.Mutex
+	var notifiedVersion string
+	guiApp.OnUpdateChange(func(s app.UpdateStatus) {
+		wailsApp.Event.Emit(updateChangedEvent, s)
+		if s.Available {
+			systemTray.SetTooltip("League RPC (update available)")
+		} else {
+			systemTray.SetTooltip("League RPC")
+		}
+
+		if !s.Available {
+			return
+		}
+		notifyMu.Lock()
+		alreadyNotified := notifiedVersion == s.Version
+		notifiedVersion = s.Version
+		notifyMu.Unlock()
+		if alreadyNotified {
+			return
+		}
+		if err := notifier.SendNotification(notifications.NotificationOptions{
+			ID:    updateReadyNotificationID,
+			Title: "League RPC update available",
+			Body:  fmt.Sprintf("Version %s is available. Click to review and install.", s.Version),
+		}); err != nil {
+			sink.Logger.Warn().Err(err).Msg("could not show update-available notification")
+		}
+	})
+	go guiApp.RunUpdates(ctx)
 
 	// Frontend pause toggles flow through the same path as tray toggles, so
 	// the daemon flag and the tray checkbox stay in agreement.
@@ -218,8 +263,9 @@ func watchConfigField[T comparable](ctx context.Context, store *config.Store, ex
 	}
 }
 
-// buildTrayMenu assembles the right-click menu: Open, Pause presence, Quit.
-func buildTrayMenu(wailsApp *application.App, tray *trayController) *application.Menu {
+// buildTrayMenu assembles the right-click menu: Open, Pause presence, Check
+// for updates, Quit.
+func buildTrayMenu(wailsApp *application.App, tray *trayController, guiApp *app.App) *application.Menu {
 	menu := wailsApp.NewMenu()
 	menu.Add("Open").OnClick(func(*application.Context) { tray.showWindow() })
 
@@ -229,6 +275,13 @@ func buildTrayMenu(wailsApp *application.App, tray *trayController) *application
 		application.InvokeAsync(func() { pauseItem.SetChecked(paused) })
 	}
 	pauseItem.OnClick(func(*application.Context) { tray.togglePause() })
+
+	menu.AddSeparator()
+	// Fire-and-forget: the result reaches the window (and this tooltip) the
+	// same way the launch/periodic checks already do, via OnUpdateChange.
+	menu.Add("Check for updates").OnClick(func(*application.Context) {
+		go func() { _, _ = guiApp.CheckForUpdates(context.Background()) }()
+	})
 
 	menu.AddSeparator()
 	menu.Add("Quit").OnClick(func(*application.Context) { wailsApp.Quit() })

@@ -2,8 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Window } from "@wailsio/runtime";
 import { GetVersion } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
 
-// Custom chrome for the frameless window (see Frameless in main.go): the
-// draggable title row plus minimize/maximize/close, replacing the native one.
+// Custom chrome for the frameless window (see Frameless in main.go).
 export function TitleBar() {
   const [version, setVersion] = useState("");
   const [maximised, setMaximised] = useState(false);

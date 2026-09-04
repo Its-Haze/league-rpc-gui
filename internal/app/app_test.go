@@ -57,8 +57,8 @@ func TestApp_UpdateMethods_NilUpdaterDegradeGracefully(t *testing.T) {
 	if _, err := a.CheckForUpdates(context.Background()); err != nil {
 		t.Fatalf("CheckForUpdates without an updater errored: %v", err)
 	}
-	if err := a.StartUpdate(context.Background()); err == nil {
-		t.Fatal("StartUpdate without an updater should error")
+	if err := a.RetryUpdate(context.Background()); err == nil {
+		t.Fatal("RetryUpdate without an updater should error")
 	}
 	if err := a.RestartForUpdate(context.Background()); err == nil {
 		t.Fatal("RestartForUpdate without an updater should error")
@@ -86,12 +86,12 @@ func TestApp_UpdateMethods_DelegateToUpdater(t *testing.T) {
 	}
 
 	u.downloadErr = errors.New("boom")
-	if err := a.StartUpdate(context.Background()); err == nil {
-		t.Fatal("StartUpdate did not propagate the updater's error")
+	if err := a.RetryUpdate(context.Background()); err == nil {
+		t.Fatal("RetryUpdate did not propagate the updater's error")
 	}
 	u.downloadErr = nil
-	if err := a.StartUpdate(context.Background()); err != nil {
-		t.Fatalf("StartUpdate: %v", err)
+	if err := a.RetryUpdate(context.Background()); err != nil {
+		t.Fatalf("RetryUpdate: %v", err)
 	}
 	if err := a.RestartForUpdate(context.Background()); err != nil {
 		t.Fatalf("RestartForUpdate: %v", err)

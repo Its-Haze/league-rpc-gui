@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { Events } from "@wailsio/runtime";
 import { useCloseRequest } from "../../hooks/useCloseRequest";
 import { useRoute } from "../../hooks/useRoute";
 import { useSettings } from "../../hooks/useSettings";
@@ -29,6 +30,10 @@ export function AppShell({ theme, onThemeChange, themeDisabled, error }: AppShel
   const closeRequest = useCloseRequest();
   const { cfg, applyPatch } = useSettings();
   const onboarding = cfg && !cfg.onboarding_complete;
+
+  // Raised when the user clicks the update-available toast notification;
+  // jumps to the same screen the sidebar's update dot does.
+  useEffect(() => Events.On("navigate:about", () => navigate("about")), [navigate]);
 
   return (
     <div className="flex h-full flex-col">

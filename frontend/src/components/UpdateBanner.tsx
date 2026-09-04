@@ -2,24 +2,17 @@ import { useEffect, useState } from "react";
 import { Events } from "@wailsio/runtime";
 import DOMPurify from "dompurify";
 import {
-  CheckForUpdates,
   GetChangelog,
-  GetUpdateStatus,
   RestartForUpdate,
-  StartUpdate,
+  RetryUpdate,
 } from "../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
-import type { UpdateStatus } from "../../bindings/github.com/its-haze/league-rpc/internal/app/models";
+import { useUpdateStatus } from "../hooks/useUpdateStatus";
 import { handleExternalLinkClick } from "../lib/links";
 import { renderMarkdown } from "../lib/markdown";
 
-// Event names the Wails updater emits directly on the same event bus as our
-// own "update:changed". See internal/updates and pkg/updater/events.go.
-const EVENT_CHANGED = "update:changed";
+// Wails' own updater engine emits this directly on the same event bus, purely
+// for a live byte count; everything else comes from our own update:changed.
 const EVENT_DOWNLOAD_PROGRESS = "wails:updater:download-progress";
-const EVENT_UPDATE_READY = "wails:updater:update-ready";
-const EVENT_ERROR = "wails:updater:error";
-
-type Phase = "idle" | "downloading" | "ready" | "error";
 
 interface Progress {
   written: number;
@@ -27,71 +20,43 @@ interface Progress {
 }
 
 export default function UpdateBanner() {
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const status = useUpdateStatus();
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [restartError, setRestartError] = useState<string | null>(null);
   const [changelog, setChangelog] = useState<string | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
-  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    GetUpdateStatus().then(setStatus).catch(() => {});
+    // A dismissal lasts only until the next status update, background poll
+    // or manual check alike.
+    setDismissedVersion(null);
+  }, [status]);
 
-    const offs = [
-      Events.On(EVENT_CHANGED, (ev: { data: UpdateStatus }) => {
-        setStatus(ev.data);
-        // Dismissal lasts only until the next check, whatever triggers it.
-        setDismissedVersion(null);
-      }),
-      Events.On(EVENT_DOWNLOAD_PROGRESS, (ev: { data: Progress }) => {
-        setPhase("downloading");
-        setProgress(ev.data);
-      }),
-      Events.On(EVENT_UPDATE_READY, () => {
-        setPhase("ready");
-        setProgress(null);
-      }),
-      Events.On(EVENT_ERROR, (ev: { data: { message?: string } }) => {
-        setPhase("error");
-        setErrorMsg(ev.data?.message ?? "the update failed");
-      }),
-    ];
-    return () => offs.forEach((off) => off());
+  useEffect(() => {
+    return Events.On(EVENT_DOWNLOAD_PROGRESS, (ev: { data: Progress }) => setProgress(ev.data));
   }, []);
 
   if (!status?.available || status.version === dismissedVersion) {
     return null;
   }
 
-  async function handleCheck() {
-    setChecking(true);
+  async function handleRetry() {
+    setRetrying(true);
     try {
-      await CheckForUpdates();
+      await RetryUpdate();
     } finally {
-      setChecking(false);
-    }
-  }
-
-  async function handleUpdate() {
-    setPhase("downloading");
-    setErrorMsg(null);
-    try {
-      await StartUpdate();
-      setPhase("ready");
-    } catch (e) {
-      setPhase("error");
-      setErrorMsg(String(e));
+      setRetrying(false);
     }
   }
 
   async function handleRestart() {
+    setRestartError(null);
     try {
       await RestartForUpdate();
     } catch (e) {
-      setPhase("error");
-      setErrorMsg(String(e));
+      setRestartError(String(e));
     }
   }
 
@@ -108,14 +73,16 @@ export default function UpdateBanner() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <strong>League RPC {status.version}</strong> is available.
-          {phase === "downloading" && progress && (
+          {restartError ? (
+            <span className="text-danger ml-2">restart failed: {restartError}</span>
+          ) : status.ready ? (
+            <span className="text-ok ml-2">ready to install</span>
+          ) : status.last_error ? (
+            <span className="text-danger ml-2">{status.last_error}</span>
+          ) : (
             <span className="text-muted ml-2">
-              downloading{progressPercent(progress)}
+              downloading{progress ? progressPercent(progress) : "..."}
             </span>
-          )}
-          {phase === "ready" && <span className="text-ok ml-2">ready to install</span>}
-          {phase === "error" && (
-            <span className="text-danger ml-2">{errorMsg ?? "update failed"}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -125,28 +92,30 @@ export default function UpdateBanner() {
           >
             {showChangelog ? "Hide changelog" : "Changelog"}
           </button>
-          {phase === "ready" ? (
+          {status.ready ? (
             <button
               onClick={handleRestart}
               className="bg-accent text-accent-text rounded-sm px-3 py-1"
             >
-              Restart now
+              Install & Restart
             </button>
           ) : (
-            <button
-              onClick={handleUpdate}
-              disabled={phase === "downloading"}
-              className="bg-accent text-accent-text rounded-sm px-3 py-1 disabled:opacity-60"
-            >
-              {phase === "downloading" ? "Updating…" : "Update"}
-            </button>
+            status.last_error && (
+              <button
+                onClick={handleRetry}
+                disabled={retrying}
+                className="bg-accent text-accent-text rounded-sm px-3 py-1 disabled:opacity-60"
+              >
+                {retrying ? "Retrying..." : "Retry"}
+              </button>
+            )
           )}
           <button
             onClick={() => setDismissedVersion(status.version)}
             aria-label="Dismiss"
             className="text-muted hover:text-text px-2 py-1 text-base transition-colors"
           >
-            ×
+            {"×"}
           </button>
         </div>
       </div>
@@ -156,20 +125,10 @@ export default function UpdateBanner() {
           className="changelog border-border text-sm border-t pt-3"
           onClick={handleExternalLinkClick}
           dangerouslySetInnerHTML={{
-            __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog…")),
+            __html: DOMPurify.sanitize(renderMarkdown(changelog ?? "Loading changelog...")),
           }}
         />
       )}
-
-      <div className="text-muted flex items-center gap-3">
-        <button
-          onClick={handleCheck}
-          disabled={checking}
-          className="hover:text-text transition-colors disabled:opacity-60"
-        >
-          {checking ? "Checking…" : "Check for updates"}
-        </button>
-      </div>
     </div>
   );
 }

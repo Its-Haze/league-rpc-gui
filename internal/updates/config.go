@@ -20,7 +20,7 @@ const ChecksumAsset = "SHA256SUMS"
 
 // CheckInterval is how often the background check re-hits GitHub Releases
 // after the launch check.
-const CheckInterval = 6 * time.Hour
+const CheckInterval = 30 * time.Minute
 
 // publicKeyPEM is the release-signature trust root; see docs/release-signing.md.
 //

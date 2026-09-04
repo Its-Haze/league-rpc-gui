@@ -179,6 +179,89 @@ func TestRun_LaunchCheckThenStops(t *testing.T) {
 	}
 }
 
+// waitFor polls cond every 5ms until it's true or the 2s deadline passes,
+// for asserting on state a background goroutine (autoDownload) will reach.
+func waitFor(t *testing.T, cond func() bool, msg string) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for !cond() {
+		select {
+		case <-deadline:
+			t.Fatal(msg)
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+}
+
+func TestCheck_TriggersAutoDownloadInTheBackground(t *testing.T) {
+	eng := &fakeEngine{rel: &wupdater.Release{Version: "2.0.0"}}
+	c := newTestCoordinator(eng)
+
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	waitFor(t, func() bool { return eng.dlCalls == 1 }, "auto-download never ran")
+
+	s := c.Status()
+	if !s.Ready {
+		t.Fatalf("status = %+v, want Ready after a successful auto-download", s)
+	}
+}
+
+func TestAutoDownload_SkipsOnceAlreadyReady(t *testing.T) {
+	eng := &fakeEngine{rel: &wupdater.Release{Version: "2.0.0"}}
+	c := newTestCoordinator(eng)
+
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("first Check: %v", err)
+	}
+	waitFor(t, func() bool { return eng.dlCalls == 1 }, "auto-download never ran")
+	waitFor(t, func() bool { return c.Status().Ready }, "never reached Ready")
+
+	// A later check (e.g. the next periodic tick) must not download again.
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("second Check: %v", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if eng.dlCalls != 1 {
+		t.Fatalf("DownloadAndInstall called %d times, want 1 once already Ready", eng.dlCalls)
+	}
+}
+
+func TestAutoDownload_FirstFailureStaysSilent(t *testing.T) {
+	eng := &fakeEngine{rel: &wupdater.Release{Version: "2.0.0"}, dlErr: errors.New("network blip")}
+	c := newTestCoordinator(eng)
+
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	waitFor(t, func() bool { return eng.dlCalls == 1 }, "auto-download never ran")
+	waitFor(t, func() bool { return !c.Status().Downloading }, "download never settled")
+
+	if s := c.Status(); s.LastError != "" {
+		t.Fatalf("LastError = %q after one failure, want empty (stays silent)", s.LastError)
+	}
+}
+
+func TestAutoDownload_SecondConsecutiveFailureSurfaces(t *testing.T) {
+	eng := &fakeEngine{rel: &wupdater.Release{Version: "2.0.0"}, dlErr: errors.New("network blip")}
+	c := newTestCoordinator(eng)
+
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("first Check: %v", err)
+	}
+	waitFor(t, func() bool { return eng.dlCalls == 1 }, "first auto-download never ran")
+	waitFor(t, func() bool { return !c.Status().Downloading }, "first download never settled")
+
+	if _, err := c.Check(context.Background()); err != nil {
+		t.Fatalf("second Check: %v", err)
+	}
+	waitFor(t, func() bool { return eng.dlCalls == 2 }, "second auto-download never ran")
+
+	waitFor(t, func() bool { return c.Status().LastError != "" }, "LastError never surfaced after two failures")
+}
+
 // doerFunc adapts a function to HTTPDoer.
 type doerFunc func(*http.Request) (*http.Response, error)
 

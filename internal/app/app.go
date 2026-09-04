@@ -26,10 +26,12 @@ type Pauser interface {
 // UpdateStatus is the App Update state the GUI renders. Distinct from Updater
 // (internal/discord), which only concerns Discord presence sends.
 type UpdateStatus struct {
-	Available bool   `json:"available"`
-	Version   string `json:"version"`
-	Notes     string `json:"notes"`
-	LastError string `json:"last_error,omitempty"`
+	Available   bool   `json:"available"`
+	Version     string `json:"version"`
+	Notes       string `json:"notes"`
+	LastError   string `json:"last_error,omitempty"`
+	Downloading bool   `json:"downloading"`
+	Ready       bool   `json:"ready"`
 }
 
 // AppUpdater is the in-app self-update surface the GUI drives, over app-local
@@ -44,8 +46,8 @@ type AppUpdater interface {
 	Current() UpdateStatus
 	// Check runs a check now, for the manual "Check for updates" action.
 	Check(ctx context.Context) (UpdateStatus, error)
-	// Download re-checks, then downloads, verifies, and swaps the binary. It
-	// does not restart.
+	// Download re-checks, then downloads, verifies, and swaps the binary.
+	// Used only for the manual "Retry" action; it otherwise runs on its own.
 	Download(ctx context.Context) error
 	// Restart relaunches into the swapped binary. Only valid after Download.
 	Restart(ctx context.Context) error
@@ -173,9 +175,8 @@ func (a *App) CheckForUpdates(ctx context.Context) (UpdateStatus, error) {
 	return a.updater.Check(ctx)
 }
 
-// StartUpdate downloads, verifies, and swaps the pending release. Returns once
-// the swap is staged; the caller still has to call RestartForUpdate.
-func (a *App) StartUpdate(ctx context.Context) error {
+// RetryUpdate downloads, verifies, and swaps the pending release by hand.
+func (a *App) RetryUpdate(ctx context.Context) error {
 	if a.updater == nil {
 		return fmt.Errorf("no update available")
 	}
@@ -183,7 +184,7 @@ func (a *App) StartUpdate(ctx context.Context) error {
 }
 
 // RestartForUpdate relaunches into the freshly swapped binary. Only valid
-// after a successful StartUpdate.
+// once the release is downloaded, verified, and staged (UpdateStatus.Ready).
 func (a *App) RestartForUpdate(ctx context.Context) error {
 	if a.updater == nil {
 		return fmt.Errorf("no update staged")

@@ -1,6 +1,7 @@
 import { Eye, House, Info, LifeBuoy, MessageCircleQuestion, SlidersHorizontal, Wrench, type LucideIcon } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { useStatus } from "../../hooks/useStatus";
+import { useUpdateStatus } from "../../hooks/useUpdateStatus";
 import { summarizeConnection, type ConnectionTone } from "../../lib/connectionStatus";
 import { DiscordIcon, GitHubIcon } from "../icons";
 import { DISCORD_COMMUNITY_URL, GITHUB_REPO_URL, openExternal } from "../../lib/links";
@@ -41,6 +42,7 @@ export interface SidebarProps {
 // lives on Behavior; this one is here for reaching it from anywhere.
 export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisabled }: SidebarProps) {
   const connection = summarizeConnection(useStatus());
+  const updateAvailable = useUpdateStatus()?.available ?? false;
 
   return (
     <nav className="border-border bg-surface flex w-44 shrink-0 flex-col border-r p-3">
@@ -48,6 +50,7 @@ export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisable
         {SECTIONS.map((section) => {
           const isActive = section === active;
           const { label, icon: Icon } = NAV[section];
+          const showUpdateDot = section === "about" && updateAvailable;
           return (
             <Fragment key={section}>
               {section === DIVIDER_BEFORE && <hr className="border-border my-2" />}
@@ -63,13 +66,21 @@ export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisable
               >
                 <span
                   className={
-                    "grid size-8 shrink-0 place-items-center rounded-md transition-colors " +
+                    "relative grid size-8 shrink-0 place-items-center rounded-md transition-colors " +
                     (isActive ? "bg-accent/15 text-accent" : "text-accent/70")
                   }
                 >
                   <Icon className="size-5" />
+                  {showUpdateDot && (
+                    <span
+                      key={section}
+                      aria-hidden
+                      className="bg-warn ring-surface update-dot-pop absolute top-0.5 right-0.5 size-2 rounded-full ring-2"
+                    />
+                  )}
                 </span>
                 {label}
+                {showUpdateDot && <span className="sr-only">, update available</span>}
               </button>
             </Fragment>
           );
