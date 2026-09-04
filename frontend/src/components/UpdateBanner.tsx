@@ -104,7 +104,7 @@ export default function UpdateBanner() {
               <button
                 onClick={handleRetry}
                 disabled={retrying}
-                className="bg-accent text-accent-text rounded-sm px-3 py-1 disabled:opacity-60"
+                className="bg-accent text-accent-text rounded-sm px-3 py-1 disabled:opacity-65"
               >
                 {retrying ? "Retrying..." : "Retry"}
               </button>

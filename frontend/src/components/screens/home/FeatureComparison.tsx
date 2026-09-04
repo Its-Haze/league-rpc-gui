@@ -45,7 +45,7 @@ export function FeatureComparison() {
         </thead>
         <tbody>
           {FEATURES.map((row) => (
-            <tr key={row.label} className="border-border/50 border-b last:border-0">
+            <tr key={row.label} className="border-border-subtle border-b last:border-0">
               <td className="py-2 pr-4">{row.label}</td>
               <td className="py-2 text-center">
                 <div className="flex justify-center">

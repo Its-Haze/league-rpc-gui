@@ -9,10 +9,16 @@
   --color-surface: var(--color-surface);
   --color-surface-raised: var(--color-surface-raised);
   --color-border: var(--color-border);
+  --color-border-subtle: var(--color-border-subtle);
   --color-text: var(--color-text);
   --color-muted: var(--color-text-muted);
+  --color-disabled: var(--color-text-disabled);
   --color-accent: var(--color-accent);
   --color-accent-text: var(--color-accent-text);
+  --color-accent-bg: var(--color-accent-bg);
+  --color-accent-bg-strong: var(--color-accent-bg-strong);
+  --color-accent-border: var(--color-accent-border);
+  --color-accent-icon: var(--color-accent-icon);
   --color-ok: var(--color-ok);
   --color-warn: var(--color-warn);
   --color-danger: var(--color-danger);
@@ -44,6 +50,14 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
+}
+
+/* One ring for every interactive element, in place of the browser default,
+   which is dark-on-light and near invisible against a light theme. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* Thin, theme-matched scrollbars everywhere, in place of the OS default. */

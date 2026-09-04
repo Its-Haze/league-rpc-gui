@@ -29,7 +29,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
         <ThemePicker value={cfg.theme} onChange={(t) => void applyPatch({ theme: t })} />
       </section>
 
-      <section className="border-accent/40 bg-accent/5 flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
+      <section className="border-accent-border bg-accent-bg flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
         <div className="flex items-start gap-3">
           <Power className="text-accent mt-0.5 size-5 shrink-0" />
           <div className="flex flex-col gap-1">
@@ -37,7 +37,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
               <LabelPrimitive.Root htmlFor="onboarding-launch-at-startup" className="text-base font-semibold">
                 Start with Windows
               </LabelPrimitive.Root>
-              <span className="border-accent/40 text-accent rounded-full border px-2 py-0.5 text-xs font-medium">
+              <span className="border-accent-border text-accent rounded-full border px-2 py-0.5 text-xs font-medium">
                 Recommended
               </span>
             </div>
@@ -56,7 +56,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
         </div>
       </section>
 
-      <section className="border-accent/40 bg-accent/5 flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
+      <section className="border-accent-border bg-accent-bg flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
         <div className="flex items-start gap-3">
           <Bell className="text-accent mt-0.5 size-5 shrink-0" />
           <div className="flex flex-col gap-1">
@@ -64,7 +64,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
               <LabelPrimitive.Root htmlFor="onboarding-notify-updates" className="text-base font-semibold">
                 Update notifications
               </LabelPrimitive.Root>
-              <span className="border-accent/40 text-accent rounded-full border px-2 py-0.5 text-xs font-medium">
+              <span className="border-accent-border text-accent rounded-full border px-2 py-0.5 text-xs font-medium">
                 Recommended
               </span>
             </div>

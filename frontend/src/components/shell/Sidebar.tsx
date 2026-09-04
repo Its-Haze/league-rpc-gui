@@ -67,7 +67,7 @@ export function Sidebar({ active, onNavigate, theme, onThemeChange, themeDisable
                 <span
                   className={
                     "relative grid size-8 shrink-0 place-items-center rounded-md transition-colors " +
-                    (isActive ? "bg-accent/15 text-accent" : "text-accent/70")
+                    (isActive ? "bg-accent-bg-strong text-accent" : "text-accent-icon")
                   }
                 >
                   <Icon className="size-5" />

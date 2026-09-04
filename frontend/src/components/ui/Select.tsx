@@ -20,7 +20,7 @@ export function Select({ value, onValueChange, options, disabled, ...aria }: Sel
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger
         {...aria}
-        className="border-border bg-surface-raised text-text focus-visible:outline-accent inline-flex items-center gap-2 rounded-sm border px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+        className="border-border bg-surface-raised text-text focus-visible:outline-accent inline-flex items-center gap-2 rounded-sm border px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:text-disabled"
       >
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon>▾</SelectPrimitive.Icon>
