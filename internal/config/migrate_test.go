@@ -2,165 +2,99 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
-const flatV1Fixture = `{
-  "discord_app_id": "999",
-  "show_stats": false,
-  "show_rank": true,
-  "show_emojis": false,
-  "show_in_client": true,
-  "auto_launch_league": true,
-  "league_path": "C:\\Games\\League",
-  "update_interval": 2500,
-  "stats_polling_interval": 4000,
-  "debug_mode": true
-}`
-
-func TestLoad_MigratesFlatFileAndWritesItBack(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("APPDATA", dir)
-
-	path, _ := GetConfigPath()
-	if err := os.MkdirAll(dirOf(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(flatV1Fixture), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-
-	if got.SchemaVersion != CurrentSchemaVersion {
-		t.Errorf("SchemaVersion = %d, want %d", got.SchemaVersion, CurrentSchemaVersion)
-	}
-	if got.DiscordAppID != "999" {
-		t.Errorf("DiscordAppID = %q", got.DiscordAppID)
-	}
-	if got.Display.Default.ShowStats {
-		t.Error("show_stats=false did not map to Display.Default.ShowStats")
-	}
-	if !got.Display.Default.ShowRank {
-		t.Error("show_rank=true did not map to Display.Default.ShowRank")
-	}
-	if got.Presence.ShowEmojis {
-		t.Error("show_emojis=false did not map to Presence.ShowEmojis")
-	}
-	if got.Advanced.UpdateInterval != 2500 || got.Advanced.StatsPollingInterval != 4000 || !got.Advanced.DebugMode {
-		t.Errorf("advanced fields did not migrate: %+v", got.Advanced)
-	}
-	if got.Theme != ThemeSystem {
-		t.Errorf("Theme = %q, want default %q", got.Theme, ThemeSystem)
-	}
-	if !got.OnboardingComplete {
-		t.Error("a migrated install should not see the first-run walkthrough again")
-	}
-
-	// The upgraded file is on disk: reloading takes the non-migration path.
-	raw, _ := os.ReadFile(path)
-	if schemaVersionOf(raw) != CurrentSchemaVersion {
-		t.Fatalf("file was not written back with a schema version: %s", raw)
-	}
+// withMigrations swaps the step table for the duration of a test.
+func withMigrations(t *testing.T, steps map[int]migrationStep) {
+	t.Helper()
+	original := migrations
+	migrations = steps
+	t.Cleanup(func() { migrations = original })
 }
 
-// A file written by the build that introduced schema v2 but not yet
-// OnboardingComplete must not replay the walkthrough for an existing install.
-func TestLoad_MigratesV2FileMissingOnboardingComplete(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("APPDATA", dir)
-
-	path, _ := GetConfigPath()
-	if err := os.MkdirAll(dirOf(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	v2Fixture := `{
-	  "schema_version": 2,
-	  "discord_app_id": "999",
-	  "theme": "dark",
-	  "display": {"default": {"show_rank": true, "show_stats": true}, "modes": {}},
-	  "presence": {"show_emojis": true, "show_in_client": true, "idle": "", "templates": {}},
-	  "behavior": {"launch_at_startup": false, "close_action": "ask"},
-	  "advanced": {"update_interval": 1500, "stats_polling_interval": 3000, "debug_mode": false}
-	}`
-	if err := os.WriteFile(path, []byte(v2Fixture), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if got.SchemaVersion != CurrentSchemaVersion {
-		t.Errorf("SchemaVersion = %d, want %d", got.SchemaVersion, CurrentSchemaVersion)
-	}
-	if !got.OnboardingComplete {
-		t.Error("a v2 install missing onboarding_complete should not see the walkthrough again")
-	}
-	if got.DiscordAppID != "999" || got.Theme != ThemeDark {
-		t.Errorf("v2 fields did not survive the upgrade: %+v", got)
-	}
-
-	raw, _ := os.ReadFile(path)
-	if schemaVersionOf(raw) != CurrentSchemaVersion {
-		t.Fatalf("file was not written back at the current schema version: %s", raw)
-	}
-}
-
-func TestLoad_V2FileRoundTrips(t *testing.T) {
+func writeConfigFile(t *testing.T, body string) string {
+	t.Helper()
 	t.Setenv("APPDATA", t.TempDir())
-
-	orig := DefaultConfig()
-	orig.Theme = ThemeDark
-	orig.Display.Default.ShowRank = false
-	if err := Save(orig); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
-
-	got, err := Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-
-	a, _ := json.Marshal(orig)
-	b, _ := json.Marshal(got)
-	if string(a) != string(b) {
-		t.Fatalf("v2 config did not round-trip:\n%s\n%s", a, b)
-	}
-}
-
-func TestLoad_BrokenFileClampsToValid(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("APPDATA", dir)
-
 	path, _ := GetConfigPath()
-	if err := os.MkdirAll(dirOf(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	broken := `{"schema_version": 2, "discord_app_id": "", "theme": "chartreuse",
-	  "advanced": {"update_interval": 1, "stats_polling_interval": 9999999}}`
-	if err := os.WriteFile(path, []byte(broken), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	got, err := Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if err := got.Validate(); err != nil {
-		t.Fatalf("Load returned an invalid config: %v", err)
-	}
+	return path
 }
 
-func dirOf(p string) string {
-	for i := len(p) - 1; i >= 0; i-- {
-		if p[i] == '/' || p[i] == '\\' {
-			return p[:i]
+// Every version below the current one needs a step, or a file written by an
+// older build stops mid-walk and loads with the wrong shape.
+func TestMigrations_CoverEveryVersionBelowCurrent(t *testing.T) {
+	for version := 1; version < CurrentSchemaVersion; version++ {
+		if _, ok := migrations[version]; !ok {
+			t.Errorf("no migration registered for schema v%d -> v%d", version, version+1)
 		}
 	}
-	return "."
+}
+
+func TestLoad_RunsRegisteredStepsAndWritesTheUpgradeBack(t *testing.T) {
+	withMigrations(t, map[int]migrationStep{
+		0: func(raw []byte) ([]byte, error) {
+			var c Config
+			if err := json.Unmarshal(raw, &c); err != nil {
+				return nil, err
+			}
+			c.DiscordAppID = "upgraded"
+			return json.Marshal(c)
+		},
+	})
+
+	path := writeConfigFile(t, `{"discord_app_id": "original", "theme": "dark"}`)
+
+	got, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.DiscordAppID != "upgraded" {
+		t.Errorf("DiscordAppID = %q, want the migrated value", got.DiscordAppID)
+	}
+	if got.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("SchemaVersion = %d, want %d", got.SchemaVersion, CurrentSchemaVersion)
+	}
+
+	raw, _ := os.ReadFile(path)
+	if schemaVersionOf(raw) != CurrentSchemaVersion {
+		t.Fatalf("upgrade was not written back: %s", raw)
+	}
+}
+
+func TestMigrateToCurrent_StopsAtAMissingStep(t *testing.T) {
+	withMigrations(t, map[int]migrationStep{})
+
+	raw := []byte(`{"discord_app_id": "999"}`)
+	got, changed, err := migrateToCurrent(raw)
+	if err != nil {
+		t.Fatalf("migrateToCurrent: %v", err)
+	}
+	if changed {
+		t.Error("changed = true with no steps registered")
+	}
+	if string(got) != string(raw) {
+		t.Errorf("raw was rewritten: %s", got)
+	}
+}
+
+func TestLoad_ReportsAFailingStep(t *testing.T) {
+	boom := errors.New("boom")
+	withMigrations(t, map[int]migrationStep{
+		0: func([]byte) ([]byte, error) { return nil, boom },
+	})
+
+	writeConfigFile(t, `{"discord_app_id": "999"}`)
+
+	if _, err := Load(); !errors.Is(err, boom) {
+		t.Fatalf("Load error = %v, want it to wrap %v", err, boom)
+	}
 }

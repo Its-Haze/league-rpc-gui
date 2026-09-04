@@ -219,7 +219,9 @@ func main() {
 		alreadyNotified := notifiedVersion == s.Version
 		notifiedVersion = s.Version
 		notifyMu.Unlock()
-		if alreadyNotified {
+		// Still tracked above even when suppressed, so re-enabling the
+		// setting later doesn't fire a toast for a version already seen.
+		if alreadyNotified || !store.Load().Behavior.NotifyUpdates {
 			return
 		}
 		if err := notifier.SendNotification(notifications.NotificationOptions{

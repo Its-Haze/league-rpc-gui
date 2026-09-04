@@ -1,7 +1,7 @@
-import { Palette, Power } from "lucide-react";
+import { Bell, Palette, Power } from "lucide-react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import type { Config } from "../../../bindings/github.com/its-haze/league-rpc/internal/config/models";
-import { withLaunchAtStartup } from "../../lib/behaviorPatch";
+import { withLaunchAtStartup, withNotifyUpdates } from "../../lib/behaviorPatch";
 import { Toggle, ThemePicker } from "../ui";
 
 export interface StartupStepProps {
@@ -15,7 +15,7 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
     <div className="flex flex-col gap-5 text-center">
       <h1 className="text-3xl font-semibold">Make it yours</h1>
       <p className="text-muted text-base">
-        Two settings for the app itself, not the status it sends.
+        Three settings for the app itself, not the status it sends.
       </p>
 
       <section className="border-border bg-surface flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
@@ -52,6 +52,36 @@ export function StartupStep({ cfg, applyPatch }: StartupStepProps) {
             checked={cfg.behavior.launch_at_startup}
             onCheckedChange={(v) => void applyPatch(withLaunchAtStartup(cfg, v))}
             label="Start with Windows"
+          />
+        </div>
+      </section>
+
+      <section className="border-accent/40 bg-accent/5 flex items-center justify-between gap-6 rounded-lg border p-5 text-left">
+        <div className="flex items-start gap-3">
+          <Bell className="text-accent mt-0.5 size-5 shrink-0" />
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <LabelPrimitive.Root htmlFor="onboarding-notify-updates" className="text-base font-semibold">
+                Update notifications
+              </LabelPrimitive.Root>
+              <span className="border-accent/40 text-accent rounded-full border px-2 py-0.5 text-xs font-medium">
+                Recommended
+              </span>
+            </div>
+            <p className="text-muted text-sm">
+              League changes constantly, and that's usually what breaks a companion app like this
+              one. Get notified the moment a fix is ready, so you're never stuck running a version
+              League has already outgrown. Not your thing? New releases are also announced in the
+              Discord server.
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0">
+          <Toggle
+            id="onboarding-notify-updates"
+            checked={cfg.behavior.notify_updates}
+            onCheckedChange={(v) => void applyPatch(withNotifyUpdates(cfg, v))}
+            label="Update notifications"
           />
         </div>
       </section>

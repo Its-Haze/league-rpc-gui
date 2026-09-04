@@ -55,20 +55,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// A versionless (or older) file is migrated one step at a time onto the
-	// current tree and written back, so an older file always ends up current.
-	if version := schemaVersionOf(data); version < CurrentSchemaVersion {
-		migrate := migrateFromV1
-		if version >= 2 {
-			migrate = migrateV2ToV3
-		}
-		migrated, err := migrate(data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to migrate config file: %w", err)
-		}
-		migrated.clamp()
-		_ = Save(migrated) // best-effort upgrade; a read-only dir shouldn't block startup
-		return migrated, nil
+	// An older file is walked up to the current schema before it is parsed.
+	data, migrated, err := migrateToCurrent(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to migrate config file: %w", err)
 	}
 
 	// Parse JSON
@@ -77,8 +67,13 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Repair anything out of bounds so a hand-edited or older file still boots.
+	// Repair anything out of bounds so a hand-edited file still boots.
 	config.clamp()
+
+	if migrated {
+		config.SchemaVersion = CurrentSchemaVersion
+		_ = Save(&config) // best-effort upgrade; a read-only dir shouldn't block startup
+	}
 
 	return &config, nil
 }

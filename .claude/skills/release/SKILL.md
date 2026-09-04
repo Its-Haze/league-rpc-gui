@@ -39,8 +39,8 @@ version number and the release notes together.
      capability. Rare for a single-maintainer desktop app; don't reach for
      it without a real reason.
 
-3. **Draft the release notes.** Follow the `release-notes` skill's process
-   (`.claude/skills/release-notes/SKILL.md`) to write
+3. **Draft the release notes.** Follow the `rpc-release-notes` skill's process
+   (`.claude/skills/rpc-release-notes/SKILL.md`) to write
    `.github/release-notes/vX.Y.Z.md`: read the actual diffs, filter to what
    a user of the app would notice, group into Highlights and Bug Fixes,
    skip emoji by default. Don't duplicate that skill's instructions here;

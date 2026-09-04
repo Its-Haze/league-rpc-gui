@@ -4,7 +4,7 @@ import type { Config } from "../../bindings/github.com/its-haze/league-rpc/inter
 // for defaults (internal/config.DefaultConfig() is), just a fixture shape.
 export function DefaultConfig(): Config {
   return {
-    schema_version: 3,
+    schema_version: 1,
     discord_app_id: "1194034071588851783",
     theme: "system",
     onboarding_complete: false,
@@ -28,6 +28,7 @@ export function DefaultConfig(): Config {
     behavior: {
       launch_at_startup: false,
       close_action: "ask",
+      notify_updates: true,
     },
     advanced: {
       update_interval: 1500,

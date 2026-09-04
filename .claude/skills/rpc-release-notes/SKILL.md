@@ -1,5 +1,5 @@
 ---
-name: release-notes
+name: rpc-release-notes
 description: Draft the curated changes file for a League RPC release (.github/release-notes/vX.Y.Z.md). Use when cutting a release, preparing to tag a version, or asked to write/draft release notes or a changelog for this project.
 ---
 

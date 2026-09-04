@@ -8,7 +8,7 @@ import (
 )
 
 // CurrentSchemaVersion is the version stamped on every config the app writes.
-const CurrentSchemaVersion = 3
+const CurrentSchemaVersion = 1
 
 // Config is the versioned settings tree. It is persisted as JSON and edited
 // through the GUI; nothing reads settings from CLI flags.
@@ -53,6 +53,7 @@ type TemplatePair struct {
 type BehaviorConfig struct {
 	LaunchAtStartup bool   `json:"launch_at_startup"` // start with Windows
 	CloseAction     string `json:"close_action"`      // ask | tray | quit
+	NotifyUpdates   bool   `json:"notify_updates"`    // show system notifications when update available
 }
 
 // AdvancedConfig holds tuning knobs and debug options.
@@ -80,6 +81,7 @@ func DefaultConfig() *Config {
 		Behavior: BehaviorConfig{
 			LaunchAtStartup: true,
 			CloseAction:     CloseAsk,
+			NotifyUpdates:   true,
 		},
 		Advanced: AdvancedConfig{
 			UpdateInterval:       1500,

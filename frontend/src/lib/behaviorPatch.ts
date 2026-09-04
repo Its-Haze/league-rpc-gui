@@ -7,6 +7,10 @@ export function withLaunchAtStartup(cfg: Config, enabled: boolean): Partial<Conf
   return { behavior: { ...cfg.behavior, launch_at_startup: enabled } };
 }
 
+export function withNotifyUpdates(cfg: Config, enabled: boolean): Partial<Config> {
+  return { behavior: { ...cfg.behavior, notify_updates: enabled } };
+}
+
 /** What the window's close button does. Mirrors config.Close* in Go. */
 export type CloseAction = "ask" | "tray" | "quit";
 

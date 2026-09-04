@@ -18,3 +18,6 @@ CLAUDE.local.md
 
 # Online-only WebView2 bootstrapper, refetched by the packaging task
 /build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+
+# Machine-local Claude config (names the reference repos, must stay uncommitted)
+.claude/settings.local.json

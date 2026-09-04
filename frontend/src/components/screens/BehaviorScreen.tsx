@@ -1,15 +1,19 @@
-import { CircleSlash, DownloadCloud, Palette, PanelTopClose, Power } from "lucide-react";
+import { Bell, CircleSlash, Palette, PanelTopClose, Power } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   GetStatus,
   SetPaused,
 } from "../../../bindings/github.com/its-haze/league-rpc/cmd/league-rpc-gui/guiservice";
-import { useCheckForUpdates } from "../../hooks/useCheckForUpdates";
 import { useDefaultConfig } from "../../hooks/useDefaultConfig";
 import { useSettings } from "../../hooks/useSettings";
 import { useStatus } from "../../hooks/useStatus";
-import { withCloseAction, withLaunchAtStartup, type CloseAction } from "../../lib/behaviorPatch";
-import { Button, Select, SettingsCard, ThemePicker, Toggle, type SelectOption } from "../ui";
+import {
+  withCloseAction,
+  withLaunchAtStartup,
+  withNotifyUpdates,
+  type CloseAction,
+} from "../../lib/behaviorPatch";
+import { Select, SettingsCard, ThemePicker, Toggle, type SelectOption } from "../ui";
 
 const CLOSE_ACTIONS: SelectOption[] = [
   { value: "ask", label: "Ask me every time" },
@@ -18,11 +22,10 @@ const CLOSE_ACTIONS: SelectOption[] = [
 ];
 
 // The Behavior section: how the app looks and behaves around the game.
-// Appearance, pausing, startup and close handling, and the update check.
+// Appearance, pausing, startup and close handling, and update notifications.
 export function BehaviorScreen() {
   const { cfg, error, applyPatch } = useSettings();
   const defaults = useDefaultConfig();
-  const { checking, result: checkResult, check: handleCheck } = useCheckForUpdates();
   const status = useStatus();
   const [paused, setPaused] = useState(false);
 
@@ -117,16 +120,20 @@ export function BehaviorScreen() {
       />
 
       <SettingsCard
-        icon={DownloadCloud}
-        title="Updates"
-        description="You're on the stable channel. New versions install from inside the app."
+        icon={Bell}
+        title="Update notifications"
+        description="Get notified when a new version is ready to install, so a League update never leaves you behind on a broken build. New releases are also announced in the Discord server."
+        badge="Recommended"
+        highlighted
+        onReset={defaults ? () => void applyPatch(withNotifyUpdates(cfg, defaults.behavior.notify_updates)) : undefined}
+        isDefault={!defaults || cfg.behavior.notify_updates === defaults.behavior.notify_updates}
         action={
-          <>
-            {checkResult && <span className="text-muted text-sm">{checkResult}</span>}
-            <Button variant="secondary" onClick={handleCheck} disabled={checking}>
-              {checking ? "Checking…" : "Check for updates"}
-            </Button>
-          </>
+          <Toggle
+            id="notify-updates"
+            checked={cfg.behavior.notify_updates}
+            onCheckedChange={(v) => void applyPatch(withNotifyUpdates(cfg, v))}
+            label="Update notifications"
+          />
         }
       />
     </div>
