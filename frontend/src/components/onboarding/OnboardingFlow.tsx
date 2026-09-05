@@ -3,6 +3,7 @@ import type { Config } from "../../../bindings/github.com/its-haze/league-rpc/in
 import { initialOnboarding, isFirstStep, isLastStep, onboardingReducer } from "../../lib/onboarding";
 import { Button } from "../ui";
 import { ClosingStep } from "./ClosingStep";
+import { HowItWorksStep } from "./HowItWorksStep";
 import { SettingsStep } from "./SettingsStep";
 import { StartupStep } from "./StartupStep";
 import { WelcomeStep } from "./WelcomeStep";
@@ -26,6 +27,7 @@ export function OnboardingFlow({ cfg, applyPatch }: OnboardingFlowProps) {
         {state.step === "welcome" && <WelcomeStep />}
         {state.step === "settings" && <SettingsStep cfg={cfg} applyPatch={applyPatch} />}
         {state.step === "startup" && <StartupStep cfg={cfg} applyPatch={applyPatch} />}
+        {state.step === "how-it-works" && <HowItWorksStep cfg={cfg} />}
         {state.step === "cta" && <ClosingStep />}
 
         <div className="flex items-center justify-between">
@@ -34,7 +36,7 @@ export function OnboardingFlow({ cfg, applyPatch }: OnboardingFlowProps) {
           </Button>
           {isLastStep(state.step) ? (
             <Button variant="primary" onClick={finish}>
-              Finish
+              Let's go
             </Button>
           ) : (
             <Button variant="primary" onClick={() => dispatch({ type: "next" })}>

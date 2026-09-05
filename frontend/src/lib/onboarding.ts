@@ -1,6 +1,6 @@
 // The first-run flow's screens, in display order. Rendered full-screen, in
 // place of the whole app shell, until the flag is cleared.
-export const ONBOARDING_STEPS = ["welcome", "settings", "startup", "cta"] as const;
+export const ONBOARDING_STEPS = ["welcome", "settings", "startup", "how-it-works", "cta"] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 

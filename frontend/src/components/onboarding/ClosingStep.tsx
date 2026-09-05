@@ -6,14 +6,15 @@ export function ClosingStep() {
     <div className="flex flex-col items-center gap-5 text-center">
       <CheckCircle2 className="text-accent size-14" />
       <h1 className="text-3xl font-semibold">You're all set</h1>
-      <section className="border-border bg-surface w-full rounded-lg border p-6">
+      <section className="border-border bg-surface flex w-full flex-col gap-2 rounded-lg border p-6">
         <p className="text-base">
-          League RPC is already running in the background. Closing this window doesn't stop it. It
-          keeps going from the tray.
+          Set it up how you like. Close the window when you're done and it keeps running from the
+          tray.
         </p>
+        <p className="text-muted text-sm">Want this walkthrough again? Help &rarr; Replay walkthrough.</p>
       </section>
-      <p className="text-muted text-xs">
-        Built and maintained by haze. Thanks for giving it a try, and enjoy your games.
+      <p className="text-muted text-sm">
+        Built and maintained by haze. Thanks for giving it a try, and enjoy your games. 💜
       </p>
     </div>
   );

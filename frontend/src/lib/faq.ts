@@ -73,6 +73,11 @@ export const FAQ_GROUPS: FaqGroup[] = [
     icon: AppWindow,
     entries: [
       {
+        question: "I opened League RPC but League didn't start",
+        answer:
+          "It doesn't launch League, and that's deliberate: it's built to start with Windows, and nobody wants League opening the moment they boot. Start League however you normally do and League RPC picks it up, even mid-game.",
+      },
+      {
         question: "I closed the window and it's still running",
         answer:
           "On purpose. It hides to the tray so your presence keeps updating. Right-click the tray icon to reopen or quit, or make the X really mean quit under Behavior.",
