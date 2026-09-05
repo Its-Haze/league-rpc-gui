@@ -6,9 +6,8 @@ import "encoding/json"
 // Steps chain, so each one only has to know about the version it upgrades from.
 type migrationStep func(raw []byte) ([]byte, error)
 
-// migrations[v] upgrades a file written at schema version v to v+1. It is empty
-// because v1 is the first released schema, so no file predates it. Adding a
-// migration means bumping CurrentSchemaVersion and registering the step here.
+// migrations[v] upgrades a file written at schema version v to v+1. Empty
+// today: v1 is the first released schema, so no file predates it.
 var migrations = map[int]migrationStep{}
 
 // schemaVersionOf reports the schema_version recorded in raw. A missing or
@@ -21,9 +20,8 @@ func schemaVersionOf(raw []byte) int {
 	return probe.SchemaVersion
 }
 
-// migrateToCurrent walks raw up to CurrentSchemaVersion one step at a time and
-// reports whether anything ran. A version with no registered step ends the walk
-// rather than failing, leaving the file to the caller's parse and clamp.
+// migrateToCurrent walks raw up to CurrentSchemaVersion a step at a time. A
+// version with no registered step ends the walk instead of failing.
 func migrateToCurrent(raw []byte) ([]byte, bool, error) {
 	changed := false
 	for version := schemaVersionOf(raw); version < CurrentSchemaVersion; version++ {
